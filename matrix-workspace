@@ -1,14 +1,52 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { Download, RotateCcw, X, Check, Star } from "lucide-react";
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FLLKI – Aufwand/Nutzen-Priorisierung</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: #f6f7f9; font-family: 'Inter','Segoe UI',system-ui,-apple-system,sans-serif; color: #1e293b; }
+  button { font-family: inherit; }
+  /* Mini-Utilities (ersetzen Tailwind, damit die Datei eigenständig läuft) */
+  .flex{display:flex}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}
+  .items-center{align-items:center}.items-end{align-items:flex-end}.items-start{align-items:flex-start}
+  .justify-between{justify-content:space-between}
+  .gap-1{gap:.25rem}.gap-2{gap:.5rem}.gap-3{gap:.75rem}.gap-4{gap:1rem}.gap-5{gap:1.25rem}
+  .p-4{padding:1rem}
+  .rounded{border-radius:.25rem}.rounded-lg{border-radius:.5rem}.rounded-full{border-radius:9999px}
+  .relative{position:relative}.absolute{position:absolute}
+  .select-none{user-select:none}.aspect-square{aspect-ratio:1/1}
+  .transition{transition:all .15s ease}.text-left{text-align:left}
+  @media(min-width:640px){ .sm-p-6{padding:1.5rem} }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useRef, useEffect, useCallback } = React;
+
+// ---- Inline-Icons (ersetzen lucide-react) ----
+const Svg = (p) => <svg width={p.s||15} height={p.s||15} viewBox="0 0 24 24" fill={p.fill||"none"} stroke={p.stroke||"currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={p.style}>{p.children}</svg>;
+const IconDownload = (p) => <Svg {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></Svg>;
+const IconReset = (p) => <Svg {...p}><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></Svg>;
+const IconClose = (p) => <Svg {...p}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></Svg>;
+const IconStar = (p) => <Svg {...p} fill={p.fill||"#f59e0b"} stroke="#f59e0b"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></Svg>;
 
 // ---- Schichten (Ebenen) ----
 const LAYERS = {
-  ki: { label: "KI-Schicht", color: "#4f46e5", tint: "rgba(79,70,229,0.06)" },
-  daten: { label: "Daten-Schicht", color: "#0d9488", tint: "rgba(13,148,136,0.06)" },
-  gov: { label: "Governance-Schicht", color: "#d97706", tint: "rgba(217,119,6,0.06)" },
+  ki: { label: "KI-Schicht", color: "#4f46e5" },
+  daten: { label: "Daten-Schicht", color: "#0d9488" },
+  gov: { label: "Governance-Schicht", color: "#d97706" },
 };
 
-// ---- Ideen / Use Cases aus dem Strategiepapier ----
+// ---- Ideen / Use Cases (Originaltext aus dem Strategiepapier) ----
 const IDEAS = [
   { id: "ki-blueprints", layer: "ki", title: "Blueprints für Unterrichts-Apps", desc: "Ziel: Blueprints für Unterrichtsanwendungen produzieren. · Neue KI-Assistenten: z.B. Korrektur handschriftlicher Aufsätze · Direkte Verbindung zur Anlaufstelle eAssessments, wo eine Textkorrektur im Rahmen formativer und summativer eAssessments ob handschriftlich oder direkt in einem Prüfungstool erfasst, diskutiert werden · Erweiterte Anwendungen in Fobizz/ToTeach · Anwendungen in Brian, FelloFish", owner: "Pascal / Anlaufstelle eAssessments" },
   { id: "ki-notebooklm", layer: "ki", title: "NotebookLM als Wissensbasis", desc: "Ziel: NotebookLM als Wissensbasis und Arbeitsinstrument. · SuS/Lernende oder Lehrperson lädt Quellen hoch · KI erstellt: Zusammenfassungen, Infographik, Präsentation, Podcast, Quizfragen, Prüfungsfragen", owner: "Benaja (MINT-Woche)" },
@@ -33,174 +71,98 @@ const IDEAS = [
 ];
 
 const STORAGE_KEY = "fllki-prioritisierung-v1";
-
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
 function quadrant(x, y) {
-  // x = Aufwand (0 gering .. 1 hoch), y = Nutzen (0 gering .. 1 hoch)
   if (y >= 0.5 && x < 0.5) return { key: "qw", label: "Quick Win", color: "#16a34a" };
   if (y >= 0.5 && x >= 0.5) return { key: "big", label: "Strategisches Projekt", color: "#4f46e5" };
   if (y < 0.5 && x < 0.5) return { key: "fill", label: "Nebenbei", color: "#64748b" };
   return { key: "avoid", label: "Kritisch prüfen", color: "#dc2626" };
 }
 
-export default function App() {
-  const [placements, setPlacements] = useState({}); // id -> {x, y}
+function loadPlacements() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) { return {}; }
+}
+
+function App() {
+  const [placements, setPlacements] = useState(loadPlacements);
   const [selectedId, setSelectedId] = useState(null);
   const [draggingId, setDraggingId] = useState(null);
-  const [loaded, setLoaded] = useState(false);
   const matrixRef = useRef(null);
   const movedRef = useRef(false);
 
-  // Load persisted placements
   useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        if (typeof window !== "undefined" && window.storage) {
-          const res = await window.storage.get(STORAGE_KEY);
-          if (active && res && res.value) setPlacements(JSON.parse(res.value));
-        }
-      } catch (e) {
-        // no saved state yet — start empty
-      } finally {
-        if (active) setLoaded(true);
-      }
-    })();
-    return () => { active = false; };
-  }, []);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(placements)); } catch (e) {}
+  }, [placements]);
 
-  // Persist on change
-  useEffect(() => {
-    if (!loaded) return;
-    (async () => {
-      try {
-        if (typeof window !== "undefined" && window.storage) {
-          await window.storage.set(STORAGE_KEY, JSON.stringify(placements));
-        }
-      } catch (e) {
-        // ignore — in-memory still works for this session
-      }
-    })();
-  }, [placements, loaded]);
-
-  const placeAtCenter = (id) => {
-    setPlacements((p) => ({ ...p, [id]: { x: 0.5, y: 0.5 } }));
-    setSelectedId(id);
-  };
-
+  const placeAtCenter = (id) => { setPlacements((p) => ({ ...p, [id]: { x: 0.5, y: 0.5 } })); setSelectedId(id); };
   const unplace = (id) => {
-    setPlacements((p) => {
-      const next = { ...p };
-      delete next[id];
-      return next;
-    });
+    setPlacements((p) => { const n = { ...p }; delete n[id]; return n; });
     if (selectedId === id) setSelectedId(null);
   };
 
-  const updateFromPointer = useCallback((id, clientX, clientY) => {
-    const rect = matrixRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const x = clamp01((clientX - rect.left) / rect.width);
-    const y = clamp01(1 - (clientY - rect.top) / rect.height);
+  const updateFromPointer = useCallback((id, cx, cy) => {
+    const r = matrixRef.current && matrixRef.current.getBoundingClientRect();
+    if (!r) return;
+    const x = clamp01((cx - r.left) / r.width);
+    const y = clamp01(1 - (cy - r.top) / r.height);
     setPlacements((p) => ({ ...p, [id]: { x, y } }));
   }, []);
 
-  const onDotPointerDown = (id) => (e) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    setDraggingId(id);
-    movedRef.current = false;
-  };
-  const onDotPointerMove = (id) => (e) => {
-    if (draggingId !== id) return;
-    movedRef.current = true;
-    updateFromPointer(id, e.clientX, e.clientY);
-  };
-  const onDotPointerUp = (id) => (e) => {
-    e.currentTarget.releasePointerCapture?.(e.pointerId);
-    setDraggingId(null);
-    if (!movedRef.current) setSelectedId((s) => (s === id ? null : id));
-  };
+  const onDown = (id) => (e) => { e.currentTarget.setPointerCapture(e.pointerId); setDraggingId(id); movedRef.current = false; };
+  const onMove = (id) => (e) => { if (draggingId !== id) return; movedRef.current = true; updateFromPointer(id, e.clientX, e.clientY); };
+  const onUp = (id) => (e) => { if (e.currentTarget.releasePointerCapture) e.currentTarget.releasePointerCapture(e.pointerId); setDraggingId(null); if (!movedRef.current) setSelectedId((s) => (s === id ? null : id)); };
 
-  const reset = () => {
-    if (window.confirm("Alle Platzierungen zurücksetzen?")) {
-      setPlacements({});
-      setSelectedId(null);
-    }
-  };
+  const reset = () => { if (window.confirm("Alle Platzierungen zurücksetzen?")) { setPlacements({}); setSelectedId(null); } };
 
-  const placedList = IDEAS
-    .filter((i) => placements[i.id])
-    .map((i) => {
-      const { x, y } = placements[i.id];
-      const aufwand = Math.round(x * 100);
-      const nutzen = Math.round(y * 100);
-      return { ...i, x, y, aufwand, nutzen, prio: nutzen - aufwand, quad: quadrant(x, y) };
-    })
-    .sort((a, b) => b.prio - a.prio);
+  const placedList = IDEAS.filter((i) => placements[i.id]).map((i) => {
+    const { x, y } = placements[i.id];
+    const aufwand = Math.round(x * 100), nutzen = Math.round(y * 100);
+    return { ...i, x, y, aufwand, nutzen, prio: nutzen - aufwand, quad: quadrant(x, y) };
+  }).sort((a, b) => b.prio - a.prio);
 
   const exportCSV = () => {
     const rows = [["Titel", "Schicht", "Verantwortlich", "Nutzen", "Aufwand", "Priorität", "Quadrant"]];
     IDEAS.forEach((i) => {
       const pl = placements[i.id];
-      if (pl) {
-        const a = Math.round(pl.x * 100), n = Math.round(pl.y * 100);
-        rows.push([i.title, LAYERS[i.layer].label, i.owner, n, a, n - a, quadrant(pl.x, pl.y).label]);
-      } else {
-        rows.push([i.title, LAYERS[i.layer].label, i.owner, "", "", "", "nicht platziert"]);
-      }
+      if (pl) { const a = Math.round(pl.x * 100), n = Math.round(pl.y * 100); rows.push([i.title, LAYERS[i.layer].label, i.owner, n, a, n - a, quadrant(pl.x, pl.y).label]); }
+      else { rows.push([i.title, LAYERS[i.layer].label, i.owner, "", "", "", "nicht platziert"]); }
     });
-    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+    const csv = rows.map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(";")).join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "fllki-priorisierung.csv";
-    link.click();
-    URL.revokeObjectURL(url);
+    const a = document.createElement("a"); a.href = url; a.download = "fllki-priorisierung.csv"; a.click(); URL.revokeObjectURL(url);
   };
 
   const selected = selectedId ? IDEAS.find((i) => i.id === selectedId) : null;
   const selectedPlace = selectedId ? placements[selectedId] : null;
   const placedCount = Object.keys(placements).length;
 
-  const font = "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif";
-
   return (
-    <div style={{ fontFamily: font, color: "#1e293b", background: "#f6f7f9", minHeight: "100%" }} className="p-4 sm:p-6">
+    <div className="p-4 sm-p-6" style={{ minHeight: "100vh" }}>
       <div style={{ maxWidth: 1180, margin: "0 auto" }}>
-        {/* Header */}
         <div className="flex flex-wrap items-end justify-between gap-3" style={{ marginBottom: 20 }}>
           <div>
-            <div style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "#94a3b8", fontWeight: 600 }}>
-              Future Learning Lab KI
-            </div>
-            <h1 style={{ fontSize: 26, fontWeight: 700, lineHeight: 1.1, marginTop: 4, letterSpacing: "-0.01em" }}>
-              Aufwand / Nutzen — Priorisierung
-            </h1>
-            <p style={{ color: "#64748b", fontSize: 14, marginTop: 6, maxWidth: 620 }}>
-              Klick eine Idee, um sie in der Matrix zu platzieren — dann frei verschieben. Hoch & links = sofort angehen.
-            </p>
+            <div style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "#94a3b8", fontWeight: 600 }}>Future Learning Lab KI</div>
+            <h1 style={{ fontSize: 26, fontWeight: 700, lineHeight: 1.1, marginTop: 4, letterSpacing: "-0.01em" }}>Aufwand / Nutzen — Priorisierung</h1>
+            <p style={{ color: "#64748b", fontSize: 14, marginTop: 6, maxWidth: 620 }}>Klick eine Idee, um sie in der Matrix zu platzieren — dann frei verschieben. Hoch &amp; links = sofort angehen.</p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={exportCSV} className="flex items-center gap-2 rounded-lg transition"
-              style={{ background: "#1e293b", color: "white", fontSize: 13, fontWeight: 600, padding: "9px 14px", border: "none", cursor: "pointer" }}>
-              <Download size={15} /> CSV exportieren
-            </button>
-            <button onClick={reset} className="flex items-center gap-2 rounded-lg transition"
-              style={{ background: "white", color: "#475569", fontSize: 13, fontWeight: 600, padding: "9px 14px", border: "1px solid #e2e8f0", cursor: "pointer" }}>
-              <RotateCcw size={15} /> Zurücksetzen
-            </button>
+            <button onClick={exportCSV} className="flex items-center gap-2 rounded-lg transition" style={{ background: "#1e293b", color: "white", fontSize: 13, fontWeight: 600, padding: "9px 14px", border: "none", cursor: "pointer" }}><IconDownload /> CSV exportieren</button>
+            <button onClick={reset} className="flex items-center gap-2 rounded-lg transition" style={{ background: "white", color: "#475569", fontSize: 13, fontWeight: 600, padding: "9px 14px", border: "1px solid #e2e8f0", cursor: "pointer" }}><IconReset /> Zurücksetzen</button>
           </div>
         </div>
 
-        <div className="flex flex-col gap-5" style={{ }}>
-          <div className="flex flex-col gap-5" style={{ flexDirection: "row", flexWrap: "wrap" }}>
+        <div className="flex flex-col gap-5">
+          <div className="flex gap-5" style={{ flexWrap: "wrap" }}>
             {/* Ideen-Pool */}
             <div style={{ flex: "1 1 290px", minWidth: 270, maxWidth: 360 }}>
               <div className="rounded-lg" style={{ background: "white", border: "1px solid #e9edf2", padding: 16 }}>
                 <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
-                  <h2 style={{ fontSize: 14, fontWeight: 700 }}>Ideen-Pool</h2>
+                  <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>Ideen-Pool</h2>
                   <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>{placedCount}/{IDEAS.length} platziert</span>
                 </div>
                 {Object.keys(LAYERS).map((lk) => {
@@ -213,26 +175,20 @@ export default function App() {
                         <span style={{ fontSize: 12, fontWeight: 700, color: "#475569" }}>{LAYERS[lk].label}</span>
                         <span style={{ fontSize: 11, color: "#cbd5e1" }}>{total - open.length}/{total}</span>
                       </div>
-                      {open.length === 0 && (
-                        <div style={{ fontSize: 12, color: "#cbd5e1", paddingLeft: 17, fontStyle: "italic" }}>alle platziert</div>
-                      )}
+                      {open.length === 0 && <div style={{ fontSize: 12, color: "#cbd5e1", paddingLeft: 17, fontStyle: "italic" }}>alle platziert</div>}
                       <div className="flex flex-col gap-1">
                         {open.map((i) => (
-                          <button key={i.id} onClick={() => placeAtCenter(i.id)}
-                            className="flex items-center gap-2 rounded transition text-left"
-                            style={{ background: "#f8fafc", border: "1px solid #eef2f6", padding: "7px 9px", cursor: "pointer", fontSize: 12.5, lineHeight: 1.25 }}>
+                          <button key={i.id} onClick={() => placeAtCenter(i.id)} className="flex items-center gap-2 rounded transition text-left" style={{ background: "#f8fafc", border: "1px solid #eef2f6", padding: "7px 9px", cursor: "pointer", fontSize: 12.5, lineHeight: 1.25 }}>
                             <span style={{ width: 6, height: 6, borderRadius: 99, background: LAYERS[lk].color, flexShrink: 0 }} />
                             <span style={{ flex: 1 }}>{i.title}</span>
-                            {i.flag && <Star size={12} style={{ color: "#f59e0b", flexShrink: 0 }} fill="#f59e0b" />}
+                            {i.flag && <IconStar s={12} style={{ flexShrink: 0 }} />}
                           </button>
                         ))}
                       </div>
                     </div>
                   );
                 })}
-                <div style={{ borderTop: "1px solid #eef2f6", paddingTop: 10, marginTop: 4, fontSize: 11, color: "#94a3b8", display: "flex", alignItems: "center", gap: 6 }}>
-                  <Star size={11} style={{ color: "#f59e0b" }} fill="#f59e0b" /> im Papier als möglicher Vorzug markiert
-                </div>
+                <div style={{ borderTop: "1px solid #eef2f6", paddingTop: 10, marginTop: 4, fontSize: 11, color: "#94a3b8", display: "flex", alignItems: "center", gap: 6 }}><IconStar s={11} /> im Papier als möglicher Vorzug markiert</div>
               </div>
             </div>
 
@@ -240,57 +196,29 @@ export default function App() {
             <div style={{ flex: "1 1 460px", minWidth: 320 }}>
               <div className="rounded-lg" style={{ background: "white", border: "1px solid #e9edf2", padding: 16 }}>
                 <div className="flex" style={{ gap: 6 }}>
-                  {/* Y axis label */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 22 }}>
-                    <span style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", color: "#64748b", textTransform: "uppercase" }}>
-                      Nutzen →
-                    </span>
+                    <span style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", color: "#64748b", textTransform: "uppercase" }}>Nutzen →</span>
                   </div>
                   <div style={{ flex: 1 }}>
                     <div ref={matrixRef} className="relative select-none aspect-square" style={{ width: "100%", borderRadius: 10, overflow: "hidden", border: "1px solid #e2e8f0", touchAction: "none" }}>
-                      {/* Quadrant tints */}
                       <div style={{ position: "absolute", left: 0, top: 0, width: "50%", height: "50%", background: "rgba(22,163,74,0.07)" }} />
                       <div style={{ position: "absolute", right: 0, top: 0, width: "50%", height: "50%", background: "rgba(79,70,229,0.06)" }} />
                       <div style={{ position: "absolute", left: 0, bottom: 0, width: "50%", height: "50%", background: "rgba(100,116,139,0.05)" }} />
                       <div style={{ position: "absolute", right: 0, bottom: 0, width: "50%", height: "50%", background: "rgba(220,38,38,0.05)" }} />
-                      {/* Center cross */}
                       <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: 1, background: "#e2e8f0" }} />
                       <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 1, background: "#e2e8f0" }} />
-                      {/* Quadrant labels */}
                       <QLabel text="Quick Wins" sub="sofort angehen" pos={{ left: 10, top: 8 }} color="#16a34a" />
                       <QLabel text="Strategische Projekte" sub="bewusst planen" pos={{ right: 10, top: 8 }} color="#4f46e5" align="right" />
                       <QLabel text="Nebenbei" sub="bei Gelegenheit" pos={{ left: 10, bottom: 8 }} color="#64748b" />
                       <QLabel text="Kritisch prüfen" sub="Aufwand hinterfragen" pos={{ right: 10, bottom: 8 }} color="#dc2626" align="right" />
-
-                      {/* Dots */}
                       {placedList.map((d) => {
                         const isSel = selectedId === d.id;
                         return (
-                          <div key={d.id}
-                            onPointerDown={onDotPointerDown(d.id)}
-                            onPointerMove={onDotPointerMove(d.id)}
-                            onPointerUp={onDotPointerUp(d.id)}
-                            title={d.title}
-                            style={{
-                              position: "absolute",
-                              left: `${d.x * 100}%`,
-                              top: `${(1 - d.y) * 100}%`,
-                              transform: "translate(-50%, -50%)",
-                              width: isSel ? 22 : 18,
-                              height: isSel ? 22 : 18,
-                              borderRadius: 99,
-                              background: LAYERS[d.layer].color,
-                              border: isSel ? "3px solid #1e293b" : "2px solid white",
-                              boxShadow: "0 1px 4px rgba(15,23,42,0.25)",
-                              cursor: draggingId === d.id ? "grabbing" : "grab",
-                              zIndex: isSel ? 20 : 10,
-                              touchAction: "none",
-                            }}
-                          />
+                          <div key={d.id} onPointerDown={onDown(d.id)} onPointerMove={onMove(d.id)} onPointerUp={onUp(d.id)} title={d.title}
+                            style={{ position: "absolute", left: (d.x * 100) + "%", top: ((1 - d.y) * 100) + "%", transform: "translate(-50%, -50%)", width: isSel ? 22 : 18, height: isSel ? 22 : 18, borderRadius: 99, background: LAYERS[d.layer].color, border: isSel ? "3px solid #1e293b" : "2px solid white", boxShadow: "0 1px 4px rgba(15,23,42,0.25)", cursor: draggingId === d.id ? "grabbing" : "grab", zIndex: isSel ? 20 : 10, touchAction: "none" }} />
                         );
                       })}
                     </div>
-                    {/* X axis label */}
                     <div className="flex items-center justify-between" style={{ marginTop: 6, fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>
                       <span>gering</span>
                       <span style={{ fontWeight: 700, letterSpacing: "0.08em", color: "#64748b", textTransform: "uppercase" }}>Aufwand →</span>
@@ -299,31 +227,25 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Selected detail */}
                 {selected && (
-                  <div className="rounded-lg" style={{ marginTop: 14, padding: 12, background: "#f8fafc", border: `1px solid ${LAYERS[selected.layer].color}33` }}>
+                  <div className="rounded-lg" style={{ marginTop: 14, padding: 12, background: "#f8fafc", border: "1px solid " + LAYERS[selected.layer].color + "33" }}>
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <div className="flex items-center gap-2">
                           <span style={{ width: 8, height: 8, borderRadius: 99, background: LAYERS[selected.layer].color }} />
                           <span style={{ fontWeight: 700, fontSize: 14 }}>{selected.title}</span>
-                          {selected.flag && <Star size={13} style={{ color: "#f59e0b" }} fill="#f59e0b" />}
+                          {selected.flag && <IconStar s={13} />}
                         </div>
                         <p style={{ fontSize: 12.5, color: "#475569", marginTop: 5, lineHeight: 1.4 }}>{selected.desc}</p>
                         <p style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 6 }}>Verantwortlich: {selected.owner}</p>
                       </div>
-                      <button onClick={() => setSelectedId(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 2 }}>
-                        <X size={16} />
-                      </button>
+                      <button onClick={() => setSelectedId(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 2 }}><IconClose s={16} /></button>
                     </div>
                     {selectedPlace && (
                       <div className="flex items-center gap-4" style={{ marginTop: 10, fontSize: 12 }}>
                         <span>Nutzen <b>{Math.round(selectedPlace.y * 100)}</b></span>
                         <span>Aufwand <b>{Math.round(selectedPlace.x * 100)}</b></span>
-                        <button onClick={() => unplace(selected.id)}
-                          style={{ marginLeft: "auto", fontSize: 12, color: "#dc2626", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
-                          Aus Matrix entfernen
-                        </button>
+                        <button onClick={() => unplace(selected.id)} style={{ marginLeft: "auto", fontSize: 12, color: "#dc2626", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>Aus Matrix entfernen</button>
                       </div>
                     )}
                   </div>
@@ -334,25 +256,19 @@ export default function App() {
 
           {/* Rangliste */}
           <div className="rounded-lg" style={{ background: "white", border: "1px solid #e9edf2", padding: 16 }}>
-            <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Rangliste nach Priorität <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: 12 }}>(Nutzen − Aufwand)</span></h2>
+            <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 10, marginTop: 0 }}>Rangliste nach Priorität <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: 12 }}>(Nutzen − Aufwand)</span></h2>
             {placedList.length === 0 ? (
-              <p style={{ fontSize: 13, color: "#94a3b8" }}>Noch nichts platziert. Klick links eine Idee, um zu starten.</p>
+              <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>Noch nichts platziert. Klick links eine Idee, um zu starten.</p>
             ) : (
-              <div className="flex flex-col" style={{ gap: 1 }}>
+              <div className="flex flex-col">
                 {placedList.map((d, idx) => (
-                  <button key={d.id} onClick={() => setSelectedId(d.id)}
-                    className="flex items-center gap-3 rounded transition text-left"
-                    style={{ padding: "8px 8px", background: selectedId === d.id ? "#f1f5f9" : "transparent", border: "none", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
+                  <button key={d.id} onClick={() => setSelectedId(d.id)} className="flex items-center gap-3 rounded transition text-left" style={{ padding: "8px 8px", background: selectedId === d.id ? "#f1f5f9" : "transparent", border: "none", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
                     <span style={{ width: 22, textAlign: "right", fontWeight: 700, fontSize: 13, color: "#cbd5e1" }}>{idx + 1}</span>
                     <span style={{ width: 9, height: 9, borderRadius: 99, background: LAYERS[d.layer].color, flexShrink: 0 }} />
                     <span style={{ flex: 1, fontSize: 13, fontWeight: 500 }}>{d.title}</span>
-                    {d.flag && <Star size={12} style={{ color: "#f59e0b", flexShrink: 0 }} fill="#f59e0b" />}
-                    <span className="rounded-full" style={{ fontSize: 11, fontWeight: 700, color: d.quad.color, background: `${d.quad.color}14`, padding: "2px 9px", flexShrink: 0 }}>
-                      {d.quad.label}
-                    </span>
-                    <span style={{ fontSize: 11.5, color: "#94a3b8", width: 86, textAlign: "right", flexShrink: 0 }}>
-                      N {d.nutzen} · A {d.aufwand}
-                    </span>
+                    {d.flag && <IconStar s={12} style={{ flexShrink: 0 }} />}
+                    <span className="rounded-full" style={{ fontSize: 11, fontWeight: 700, color: d.quad.color, background: d.quad.color + "14", padding: "2px 9px", flexShrink: 0 }}>{d.quad.label}</span>
+                    <span style={{ fontSize: 11.5, color: "#94a3b8", width: 86, textAlign: "right", flexShrink: 0 }}>N {d.nutzen} · A {d.aufwand}</span>
                   </button>
                 ))}
               </div>
@@ -364,11 +280,16 @@ export default function App() {
   );
 }
 
-function QLabel({ text, sub, pos, color, align = "left" }) {
+function QLabel({ text, sub, pos, color, align }) {
   return (
-    <div style={{ position: "absolute", ...pos, textAlign: align, pointerEvents: "none", maxWidth: "46%" }}>
+    <div style={{ position: "absolute", ...pos, textAlign: align || "left", pointerEvents: "none", maxWidth: "46%" }}>
       <div style={{ fontSize: 12, fontWeight: 700, color }}>{text}</div>
       <div style={{ fontSize: 10.5, color: "#94a3b8" }}>{sub}</div>
     </div>
   );
 }
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
