@@ -1,0 +1,374 @@
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Download, RotateCcw, X, Check, Star } from "lucide-react";
+
+// ---- Schichten (Ebenen) ----
+const LAYERS = {
+  ki: { label: "KI-Schicht", color: "#4f46e5", tint: "rgba(79,70,229,0.06)" },
+  daten: { label: "Daten-Schicht", color: "#0d9488", tint: "rgba(13,148,136,0.06)" },
+  gov: { label: "Governance-Schicht", color: "#d97706", tint: "rgba(217,119,6,0.06)" },
+};
+
+// ---- Ideen / Use Cases aus dem Strategiepapier ----
+const IDEAS = [
+  { id: "ki-blueprints", layer: "ki", title: "Blueprints für Unterrichts-Apps", desc: "Ziel: Blueprints für Unterrichtsanwendungen produzieren. · Neue KI-Assistenten: z.B. Korrektur handschriftlicher Aufsätze · Direkte Verbindung zur Anlaufstelle eAssessments, wo eine Textkorrektur im Rahmen formativer und summativer eAssessments ob handschriftlich oder direkt in einem Prüfungstool erfasst, diskutiert werden · Erweiterte Anwendungen in Fobizz/ToTeach · Anwendungen in Brian, FelloFish", owner: "Pascal / Anlaufstelle eAssessments" },
+  { id: "ki-notebooklm", layer: "ki", title: "NotebookLM als Wissensbasis", desc: "Ziel: NotebookLM als Wissensbasis und Arbeitsinstrument. · SuS/Lernende oder Lehrperson lädt Quellen hoch · KI erstellt: Zusammenfassungen, Infographik, Präsentation, Podcast, Quizfragen, Prüfungsfragen", owner: "Benaja (MINT-Woche)" },
+  { id: "ki-copilot", layer: "ki", title: "MS Copilot im Bildungsumfeld schärfen", desc: "Ziel: Rolle von MS Copilot im Bildungsumfeld schärfen. · Für MS Copilot braucht es u.U. ein didaktisches Konzept · Für premig-Schulen kann der Co-Pilot für LP und SuS/Lernenden noch selbst administriert werden (Christof), während das AfI den M365 Copiloten (Chat-Bot) aus dem DAP entfernt hat. Hier ist Klärung nötig · Bei EDU-Lizenzen haben die LP eine Zugriffsmöglichkeit. Wenn das bei den SuS/Lernenden auch der Fall wäre könnte der Co-Pilot aufgrund der Datenschutzsicherheiten zu einer ernsthaften Konkurrenz für Fobizz werden", owner: "Christof" },
+  { id: "ki-vibecoding", layer: "ki", title: "Vibe-Coding im Unterricht", desc: "Ziel: Vibe-Coding im Unterricht. · Schüler entwickeln kleine Anwendungen mit KI · Fokus: Problemlösekompetenz statt Syntax · Output: funktionierende Prototypen", owner: "Christof, Graziano" },
+  { id: "ki-fachassistent", layer: "ki", title: "Fach-/berufsspezifische KI-Assistenten", desc: "Ziel: Fach-/Berufsspezifische KI-Assistenten. · Ein Mathematikbot für die typischen Anwendungsfälle/Pain Points einer Berufsgruppe unterstützt die Lernenden · Beispiel: Ein Mathematikbot für Köche wird in Fobizz realisiert und eingerahmt in ein pädagogisches Gesamtkonzept mit Feedback und Quizzes · Erfahrungswerte von Lehrpersonen fliessen in das Training ein · Soll schnell auf andere Berufsgruppen z.B. Detailhandel übertragbar sein", owner: "NN" },
+  { id: "ki-sparring", layer: "ki", title: "Generative KI als Sparringpartner", desc: "Ziel: Generative KI als Sparringpartner (Denken mit KI). · Interaktive Sokratische Tutoren: KI-Bots, die mit SuS/Lernenden in einem Dialog mit Frage, Gegenfrage und Begründung Lösungen erarbeitet und nicht einfach die Lösung präsentiert. Das System bewertet laufend formativ die Tiefe der Antworten und das Konzeptverständnis. Aktive, konstruktive und interaktive Wissenskonstruktion statt Copy-Paste · Multimodale Inhaltserstellung: SuS/Lernende nutzen KI, um komplexe Konzepte (z. B. Zellteilung oder Wirtschaftskreisläufe) in Echtzeit in Erklärvideos, Simulationen mit veränderbaren Parametern und Visualisierungen (z.B. Diagramme) zu überführen. Eine formative Bewertung stützt sich auf Verständnis und Transfer aber nicht auf die Produkt-/Text-Qualität", owner: "Pascal Schmidt", flag: true },
+  { id: "ki-literacy", layer: "ki", title: "KI-Literacy: RAG vs. Finetuning", desc: "Ziel: KI-Literacy für LP und SuS/Lernende. · Eine technische Spielwiese erlaubt es, den KI-Output eines selbstproduzierten RAG-Ansatzes mit einem Prompt-Finetuning zu vergleichen · Das Themenfeld Prüfungskorrekturen eignet sich in besonderem Masse für diese Herangehensweise", owner: "Graziano" },
+  { id: "ki-agenten", layer: "ki", title: "Multi-Agenten-System", desc: "Agentensysteme: Tutor-, Prüfungs-, Lern-Coach-, Organisations-Agenten. · KI-Agenten stehen im Verdacht, in 12–24 Monaten in der (Hochschul-)Lehre selbstverständlich zu sein · openClaw z.B. kombiniert verschiedene KI-Modelle mit (echter) Software. Die Agenten sind dann über WhatsApp erreichbar · Entwicklung eines Multi-Agenten-Systems: Agent 1: Prüfer (Fragen stellen), Agent 2: Protokollant (Transkript), Agent 3: Evaluator (Bewertung) · Human in the loop: Lehrperson ist immer die Final Decision Layer", owner: "Roy (Austausch A. Wirthensohn)" },
+  { id: "ki-ais", layer: "ki", title: "AIS/ITS Tutor-Ökosystem", desc: "Ziel: Etablierung eines ganzen Lehr-Lern-Ökosystems. · Diese Systeme gehen über einfache Übungsportale hinaus. Sie nutzen Algorithmen, um Wissenslücken in Echtzeit zu diagnostizieren. · AIS: Ein System passt die Lernumgebung (inkl. CI/CD) je nach den Bedürfnissen der SuS/Lernenden selbständig an; AIS folgen einer «eher einfachen Logik». ITS: besitzen ein tiefes Modell des Fachwissens und ein tiefes Wissen über Lernmodelle; ITS folgen einer «eher komplexeren Logik» · Hyper-Personalisierung, Echtzeit-Feedback, Entlastung Lehrpersonen (Dashboards) · Ein Ergebnis könnte das Lancieren einer Anlaufstelle AIS/IST im Rahmen einer Sandbox durch DLH/EdTech/EBdigital sein", owner: "Roy (FWU)" },
+  { id: "ki-vr", layer: "ki", title: "VR-Unterrichtswelten mit KI", desc: "Ziel: VR-Unterrichtswelten mit KI designen. · Im Bildungsbereich verschmelzen VR und KI zu etwas völlig Neuem. VR baut die Räume, in denen gelernt wird – aber erst die KI sorgt dafür, dass diese Räume intelligent auf die Bedürfnisse der SuS/Lernenden reagieren. · Text-to-3D: Die KI generiert die 3D-Umgebung · Adaptive Ansätze: Die KI analysiert im Hintergrund das Verhalten der SuS/Lernenden (Blickfeld-Tracking) und verändert die Unterrichtswelt dynamisch in Echtzeit · Unterstützung bei Lernschwächen: visuelle Reize reduzieren, Kontraste anpassen, «Leichte Sprache»", owner: "Roy" },
+  { id: "ki-tandem", layer: "ki", title: "KI-Tandem BFS–Lehrbetrieb", desc: "Ziel: KI-Tandem schafft eine Transferdynamik zwischen BFS und Lehrbetrieb. · Lernende bearbeiten einen realen Auftrag aus ihrem Betrieb mit KI-Unterstützung, begleitet von der Berufsschule. · Die KI ist dabei nicht Hilfsmittel für eine Schulaufgabe, sondern Werkzeug in einem echten Berufsproblem.", owner: "NN" },
+  { id: "daten-analytics", layer: "daten", title: "Learning-Analytics-Dashboard", desc: "Ziel: Feedback zum Lernverlauf für alle Beteiligten. · Lernverlaufsdaten machen das «Lernen sichtbar» (Interaktionen, Antworten); die Auswertung wird als Learning Analytics bezeichnet. · Deskriptive Analyse: Was wurde bereits erledigt und in welcher Qualität? · Prädiktive Analyse: Was wird passieren? · Preskriptive Analyse: Wie können wir den Erfolg optimieren? · Ein einfaches deskriptives Dashboard in Moodle, das einer LP zeigt, wer was wann bearbeitet hat, wäre ein handfester Einstieg in die Daten-Schicht.", owner: "NN" },
+  { id: "daten-prozess", layer: "daten", title: "Prozess-Monitoring (Versioning)", desc: "Ziel: Prozessbegleitung für Feedback und Bewertung des Entstehungsprozesses. · SuS/Lernende entwickeln einen längeren Text, wobei KI-Systeme Versionen des Textes für ein Prozess-Monitoring speichern · Die KI analysiert die Argumentationsstruktur, die Kohärenz und die Eigenleistung und gibt Feedback an die SuS/Lernenden in Echtzeit · Die KI-Analyse macht Copy-Paste, Stilbrüche, Eigenleistung d.h. die Entwicklung des Textes sichtbar und bewertbar · Ein KI Dashboard zeigt den LP den Arbeitsfortschritt und mögliche Problematiken an", owner: "NN" },
+  { id: "daten-pruefkultur", layer: "daten", title: "Prüfkultur in Zeiten von KI", desc: "Ziel: Prüfen in Zeiten von KI. · In welche Richtung entwickelt sich die Prüfungskultur in Zeiten von KI? · Was soll bzw. kann in der Sek II überhaupt noch geprüft werden und welche Bedeutung hat das handlungskompetenzorientierte Prüfen der Berufsbildung · Wie sehen ganz generell Zukunftsszenarien der Prüfungen mit openBook, openMedia, openNeigbour und openKI aus? Einbezug von Projekt Basel (Lizzy Simon)", owner: "NN" },
+  { id: "daten-korrektur", layer: "daten", title: "KI-Prüfungskorrektur (Stift+)", desc: "Ziel: KI generierte Prüfungskorrektur in Zusammenarbeit mit der Anlaufstelle eAssessments. · Das Projekt Stift+ der ETH (Gerd Kortemeyer): MINT-Prüfungen auf Papier schreiben lassen, einscannen, KI-Prüfungskorrektur und Vergabe von Punkten, Punktsumme, Dozierende machen Stichproben und vergeben Noten, Studierende haben nachträglich Einsicht und Vetorecht (Qualitätskontrolle) · Der Ansatz ist in Zusammenarbeit mit Kortemeyer für die Sek II anzupassen und in Beziehung zu rein digitalen Lösungen (z.B. isTest) zu setzen: anpassen, testen, empfehlen · Einbezug Doreen Flick-Holtsch (isTest) und Jürg Widrig; Moodle Alliance", owner: "Graziano" },
+  { id: "daten-eassessment", layer: "daten", title: "Mündliches eAssessment (neue Architektur)", desc: "Ziel: Formatives und summatives eAssessment mit neuer Prüfungsarchitektur. · KI-Agent führt Prüfung mit dynamischen (antwortabhängigen) Fragen und ein weiterer KI-Agent bewertet das Transkript · In Anlehnung an ELIAS vom DSI und dem Multiagentic-Ansatz von Tanja Käser soll eine mündliche Prüfung simuliert werden; die Screencast-/Transkriptionsergebnisse werden einem weiteren KI-Assistenten zur Auswertung übergeben. Dazu braucht es eine Risikoanalyse. · Komplexe Kompetenzen und Handlungskompetenzen formativ und summativ beurteilen", owner: "Alex" },
+  { id: "daten-selbststudium", layer: "daten", title: "KI-gestütztes Selbststudium", desc: "Ziel: KI-gestütztes Selbststudium. · Flipped-Classroom-Ansätze stützen sich auf ein dem eigentlichen Unterricht vorausgehendes Selbststudium. Wie lässt sich diese Phase begleiten? · Unterstützt werden müssen: Kompetenzziele formulieren, Einheiten modularisieren, Zeitmanagement optimieren, interaktive Videos, Self-Assessments, Vorbereitungsfragen, Heterogenität, «the muddiest points» herausschälen, Peer-Feedback, Lernprotokolle, Pre-Class-Surveys · Fazit: Ein KI-Buddy sollte die Lernenden durch diese Phase begleiten, damit der eigentliche Unterricht möglichst effektiv und effizient gestaltet werden kann", owner: "NN", flag: true },
+  { id: "gov-datenschutz", layer: "gov", title: "Lokale LLMs vs. Cloud", desc: "Ziel: Befreiung von Datenschutz- und Urheberrechtsfragen. · Lokale LLM eröffnen für die Schulen die Möglichkeit, sich von einer Vielzahl von Datenschutz- und Urheberrechtsfragen im Zusammenhang mit KI zu befreien · Es ergeben sich aber eine ganze Reihe Fragen zur Realisierbarkeit, zum Betrieb und zu den Ressourcen · Weitere unterschiedliche Formate (RAG, Finetuning, Agents etc.) in einer lokalen Umgebung austesten", owner: "Roy, Christian (EB-Projekt)" },
+  { id: "gov-rollen", layer: "gov", title: "MS Teams als zentraler Zugang", desc: "Ziel: MS Teams als Einstiegspunkt für alles. · KI-Tools über MS Teams zur Verfügung stellen und Übersichtlichkeit erhöhen", owner: "Projekt Portal" },
+  { id: "gov-extern", layer: "gov", title: "Externes Know-how einbinden", desc: "Ziel: Nutzung von externem Know-How bzw. wie kann externes Know-How eingebunden werden. · Beispiel: Gero und Friedrich von tutor.new bieten eine KI-ZAP-Vorbereitung an mit hinterlegtem Curriculum, Prüfungskriterien und alten Prüfungen · Die Programmierung einer Anwendung für das Gymi Wattwil", owner: "Roy" },
+];
+
+const STORAGE_KEY = "fllki-prioritisierung-v1";
+
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+
+function quadrant(x, y) {
+  // x = Aufwand (0 gering .. 1 hoch), y = Nutzen (0 gering .. 1 hoch)
+  if (y >= 0.5 && x < 0.5) return { key: "qw", label: "Quick Win", color: "#16a34a" };
+  if (y >= 0.5 && x >= 0.5) return { key: "big", label: "Strategisches Projekt", color: "#4f46e5" };
+  if (y < 0.5 && x < 0.5) return { key: "fill", label: "Nebenbei", color: "#64748b" };
+  return { key: "avoid", label: "Kritisch prüfen", color: "#dc2626" };
+}
+
+export default function App() {
+  const [placements, setPlacements] = useState({}); // id -> {x, y}
+  const [selectedId, setSelectedId] = useState(null);
+  const [draggingId, setDraggingId] = useState(null);
+  const [loaded, setLoaded] = useState(false);
+  const matrixRef = useRef(null);
+  const movedRef = useRef(false);
+
+  // Load persisted placements
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        if (typeof window !== "undefined" && window.storage) {
+          const res = await window.storage.get(STORAGE_KEY);
+          if (active && res && res.value) setPlacements(JSON.parse(res.value));
+        }
+      } catch (e) {
+        // no saved state yet — start empty
+      } finally {
+        if (active) setLoaded(true);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  // Persist on change
+  useEffect(() => {
+    if (!loaded) return;
+    (async () => {
+      try {
+        if (typeof window !== "undefined" && window.storage) {
+          await window.storage.set(STORAGE_KEY, JSON.stringify(placements));
+        }
+      } catch (e) {
+        // ignore — in-memory still works for this session
+      }
+    })();
+  }, [placements, loaded]);
+
+  const placeAtCenter = (id) => {
+    setPlacements((p) => ({ ...p, [id]: { x: 0.5, y: 0.5 } }));
+    setSelectedId(id);
+  };
+
+  const unplace = (id) => {
+    setPlacements((p) => {
+      const next = { ...p };
+      delete next[id];
+      return next;
+    });
+    if (selectedId === id) setSelectedId(null);
+  };
+
+  const updateFromPointer = useCallback((id, clientX, clientY) => {
+    const rect = matrixRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = clamp01((clientX - rect.left) / rect.width);
+    const y = clamp01(1 - (clientY - rect.top) / rect.height);
+    setPlacements((p) => ({ ...p, [id]: { x, y } }));
+  }, []);
+
+  const onDotPointerDown = (id) => (e) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDraggingId(id);
+    movedRef.current = false;
+  };
+  const onDotPointerMove = (id) => (e) => {
+    if (draggingId !== id) return;
+    movedRef.current = true;
+    updateFromPointer(id, e.clientX, e.clientY);
+  };
+  const onDotPointerUp = (id) => (e) => {
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    setDraggingId(null);
+    if (!movedRef.current) setSelectedId((s) => (s === id ? null : id));
+  };
+
+  const reset = () => {
+    if (window.confirm("Alle Platzierungen zurücksetzen?")) {
+      setPlacements({});
+      setSelectedId(null);
+    }
+  };
+
+  const placedList = IDEAS
+    .filter((i) => placements[i.id])
+    .map((i) => {
+      const { x, y } = placements[i.id];
+      const aufwand = Math.round(x * 100);
+      const nutzen = Math.round(y * 100);
+      return { ...i, x, y, aufwand, nutzen, prio: nutzen - aufwand, quad: quadrant(x, y) };
+    })
+    .sort((a, b) => b.prio - a.prio);
+
+  const exportCSV = () => {
+    const rows = [["Titel", "Schicht", "Verantwortlich", "Nutzen", "Aufwand", "Priorität", "Quadrant"]];
+    IDEAS.forEach((i) => {
+      const pl = placements[i.id];
+      if (pl) {
+        const a = Math.round(pl.x * 100), n = Math.round(pl.y * 100);
+        rows.push([i.title, LAYERS[i.layer].label, i.owner, n, a, n - a, quadrant(pl.x, pl.y).label]);
+      } else {
+        rows.push([i.title, LAYERS[i.layer].label, i.owner, "", "", "", "nicht platziert"]);
+      }
+    });
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "fllki-priorisierung.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const selected = selectedId ? IDEAS.find((i) => i.id === selectedId) : null;
+  const selectedPlace = selectedId ? placements[selectedId] : null;
+  const placedCount = Object.keys(placements).length;
+
+  const font = "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif";
+
+  return (
+    <div style={{ fontFamily: font, color: "#1e293b", background: "#f6f7f9", minHeight: "100%" }} className="p-4 sm:p-6">
+      <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+        {/* Header */}
+        <div className="flex flex-wrap items-end justify-between gap-3" style={{ marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "#94a3b8", fontWeight: 600 }}>
+              Future Learning Lab KI
+            </div>
+            <h1 style={{ fontSize: 26, fontWeight: 700, lineHeight: 1.1, marginTop: 4, letterSpacing: "-0.01em" }}>
+              Aufwand / Nutzen — Priorisierung
+            </h1>
+            <p style={{ color: "#64748b", fontSize: 14, marginTop: 6, maxWidth: 620 }}>
+              Klick eine Idee, um sie in der Matrix zu platzieren — dann frei verschieben. Hoch & links = sofort angehen.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={exportCSV} className="flex items-center gap-2 rounded-lg transition"
+              style={{ background: "#1e293b", color: "white", fontSize: 13, fontWeight: 600, padding: "9px 14px", border: "none", cursor: "pointer" }}>
+              <Download size={15} /> CSV exportieren
+            </button>
+            <button onClick={reset} className="flex items-center gap-2 rounded-lg transition"
+              style={{ background: "white", color: "#475569", fontSize: 13, fontWeight: 600, padding: "9px 14px", border: "1px solid #e2e8f0", cursor: "pointer" }}>
+              <RotateCcw size={15} /> Zurücksetzen
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-5" style={{ }}>
+          <div className="flex flex-col gap-5" style={{ flexDirection: "row", flexWrap: "wrap" }}>
+            {/* Ideen-Pool */}
+            <div style={{ flex: "1 1 290px", minWidth: 270, maxWidth: 360 }}>
+              <div className="rounded-lg" style={{ background: "white", border: "1px solid #e9edf2", padding: 16 }}>
+                <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
+                  <h2 style={{ fontSize: 14, fontWeight: 700 }}>Ideen-Pool</h2>
+                  <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>{placedCount}/{IDEAS.length} platziert</span>
+                </div>
+                {Object.keys(LAYERS).map((lk) => {
+                  const open = IDEAS.filter((i) => i.layer === lk && !placements[i.id]);
+                  const total = IDEAS.filter((i) => i.layer === lk).length;
+                  return (
+                    <div key={lk} style={{ marginBottom: 14 }}>
+                      <div className="flex items-center gap-2" style={{ marginBottom: 6 }}>
+                        <span style={{ width: 9, height: 9, borderRadius: 99, background: LAYERS[lk].color, display: "inline-block" }} />
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#475569" }}>{LAYERS[lk].label}</span>
+                        <span style={{ fontSize: 11, color: "#cbd5e1" }}>{total - open.length}/{total}</span>
+                      </div>
+                      {open.length === 0 && (
+                        <div style={{ fontSize: 12, color: "#cbd5e1", paddingLeft: 17, fontStyle: "italic" }}>alle platziert</div>
+                      )}
+                      <div className="flex flex-col gap-1">
+                        {open.map((i) => (
+                          <button key={i.id} onClick={() => placeAtCenter(i.id)}
+                            className="flex items-center gap-2 rounded transition text-left"
+                            style={{ background: "#f8fafc", border: "1px solid #eef2f6", padding: "7px 9px", cursor: "pointer", fontSize: 12.5, lineHeight: 1.25 }}>
+                            <span style={{ width: 6, height: 6, borderRadius: 99, background: LAYERS[lk].color, flexShrink: 0 }} />
+                            <span style={{ flex: 1 }}>{i.title}</span>
+                            {i.flag && <Star size={12} style={{ color: "#f59e0b", flexShrink: 0 }} fill="#f59e0b" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+                <div style={{ borderTop: "1px solid #eef2f6", paddingTop: 10, marginTop: 4, fontSize: 11, color: "#94a3b8", display: "flex", alignItems: "center", gap: 6 }}>
+                  <Star size={11} style={{ color: "#f59e0b" }} fill="#f59e0b" /> im Papier als möglicher Vorzug markiert
+                </div>
+              </div>
+            </div>
+
+            {/* Matrix */}
+            <div style={{ flex: "1 1 460px", minWidth: 320 }}>
+              <div className="rounded-lg" style={{ background: "white", border: "1px solid #e9edf2", padding: 16 }}>
+                <div className="flex" style={{ gap: 6 }}>
+                  {/* Y axis label */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 22 }}>
+                    <span style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", color: "#64748b", textTransform: "uppercase" }}>
+                      Nutzen →
+                    </span>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div ref={matrixRef} className="relative select-none aspect-square" style={{ width: "100%", borderRadius: 10, overflow: "hidden", border: "1px solid #e2e8f0", touchAction: "none" }}>
+                      {/* Quadrant tints */}
+                      <div style={{ position: "absolute", left: 0, top: 0, width: "50%", height: "50%", background: "rgba(22,163,74,0.07)" }} />
+                      <div style={{ position: "absolute", right: 0, top: 0, width: "50%", height: "50%", background: "rgba(79,70,229,0.06)" }} />
+                      <div style={{ position: "absolute", left: 0, bottom: 0, width: "50%", height: "50%", background: "rgba(100,116,139,0.05)" }} />
+                      <div style={{ position: "absolute", right: 0, bottom: 0, width: "50%", height: "50%", background: "rgba(220,38,38,0.05)" }} />
+                      {/* Center cross */}
+                      <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: 1, background: "#e2e8f0" }} />
+                      <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 1, background: "#e2e8f0" }} />
+                      {/* Quadrant labels */}
+                      <QLabel text="Quick Wins" sub="sofort angehen" pos={{ left: 10, top: 8 }} color="#16a34a" />
+                      <QLabel text="Strategische Projekte" sub="bewusst planen" pos={{ right: 10, top: 8 }} color="#4f46e5" align="right" />
+                      <QLabel text="Nebenbei" sub="bei Gelegenheit" pos={{ left: 10, bottom: 8 }} color="#64748b" />
+                      <QLabel text="Kritisch prüfen" sub="Aufwand hinterfragen" pos={{ right: 10, bottom: 8 }} color="#dc2626" align="right" />
+
+                      {/* Dots */}
+                      {placedList.map((d) => {
+                        const isSel = selectedId === d.id;
+                        return (
+                          <div key={d.id}
+                            onPointerDown={onDotPointerDown(d.id)}
+                            onPointerMove={onDotPointerMove(d.id)}
+                            onPointerUp={onDotPointerUp(d.id)}
+                            title={d.title}
+                            style={{
+                              position: "absolute",
+                              left: `${d.x * 100}%`,
+                              top: `${(1 - d.y) * 100}%`,
+                              transform: "translate(-50%, -50%)",
+                              width: isSel ? 22 : 18,
+                              height: isSel ? 22 : 18,
+                              borderRadius: 99,
+                              background: LAYERS[d.layer].color,
+                              border: isSel ? "3px solid #1e293b" : "2px solid white",
+                              boxShadow: "0 1px 4px rgba(15,23,42,0.25)",
+                              cursor: draggingId === d.id ? "grabbing" : "grab",
+                              zIndex: isSel ? 20 : 10,
+                              touchAction: "none",
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                    {/* X axis label */}
+                    <div className="flex items-center justify-between" style={{ marginTop: 6, fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>
+                      <span>gering</span>
+                      <span style={{ fontWeight: 700, letterSpacing: "0.08em", color: "#64748b", textTransform: "uppercase" }}>Aufwand →</span>
+                      <span>hoch</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Selected detail */}
+                {selected && (
+                  <div className="rounded-lg" style={{ marginTop: 14, padding: 12, background: "#f8fafc", border: `1px solid ${LAYERS[selected.layer].color}33` }}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span style={{ width: 8, height: 8, borderRadius: 99, background: LAYERS[selected.layer].color }} />
+                          <span style={{ fontWeight: 700, fontSize: 14 }}>{selected.title}</span>
+                          {selected.flag && <Star size={13} style={{ color: "#f59e0b" }} fill="#f59e0b" />}
+                        </div>
+                        <p style={{ fontSize: 12.5, color: "#475569", marginTop: 5, lineHeight: 1.4 }}>{selected.desc}</p>
+                        <p style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 6 }}>Verantwortlich: {selected.owner}</p>
+                      </div>
+                      <button onClick={() => setSelectedId(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 2 }}>
+                        <X size={16} />
+                      </button>
+                    </div>
+                    {selectedPlace && (
+                      <div className="flex items-center gap-4" style={{ marginTop: 10, fontSize: 12 }}>
+                        <span>Nutzen <b>{Math.round(selectedPlace.y * 100)}</b></span>
+                        <span>Aufwand <b>{Math.round(selectedPlace.x * 100)}</b></span>
+                        <button onClick={() => unplace(selected.id)}
+                          style={{ marginLeft: "auto", fontSize: 12, color: "#dc2626", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+                          Aus Matrix entfernen
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Rangliste */}
+          <div className="rounded-lg" style={{ background: "white", border: "1px solid #e9edf2", padding: 16 }}>
+            <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Rangliste nach Priorität <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: 12 }}>(Nutzen − Aufwand)</span></h2>
+            {placedList.length === 0 ? (
+              <p style={{ fontSize: 13, color: "#94a3b8" }}>Noch nichts platziert. Klick links eine Idee, um zu starten.</p>
+            ) : (
+              <div className="flex flex-col" style={{ gap: 1 }}>
+                {placedList.map((d, idx) => (
+                  <button key={d.id} onClick={() => setSelectedId(d.id)}
+                    className="flex items-center gap-3 rounded transition text-left"
+                    style={{ padding: "8px 8px", background: selectedId === d.id ? "#f1f5f9" : "transparent", border: "none", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
+                    <span style={{ width: 22, textAlign: "right", fontWeight: 700, fontSize: 13, color: "#cbd5e1" }}>{idx + 1}</span>
+                    <span style={{ width: 9, height: 9, borderRadius: 99, background: LAYERS[d.layer].color, flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 500 }}>{d.title}</span>
+                    {d.flag && <Star size={12} style={{ color: "#f59e0b", flexShrink: 0 }} fill="#f59e0b" />}
+                    <span className="rounded-full" style={{ fontSize: 11, fontWeight: 700, color: d.quad.color, background: `${d.quad.color}14`, padding: "2px 9px", flexShrink: 0 }}>
+                      {d.quad.label}
+                    </span>
+                    <span style={{ fontSize: 11.5, color: "#94a3b8", width: 86, textAlign: "right", flexShrink: 0 }}>
+                      N {d.nutzen} · A {d.aufwand}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QLabel({ text, sub, pos, color, align = "left" }) {
+  return (
+    <div style={{ position: "absolute", ...pos, textAlign: align, pointerEvents: "none", maxWidth: "46%" }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color }}>{text}</div>
+      <div style={{ fontSize: 10.5, color: "#94a3b8" }}>{sub}</div>
+    </div>
+  );
+}
