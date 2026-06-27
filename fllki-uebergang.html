@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FLLKI · Übergang steuern</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EBEEF2; --surface:#FFFFFF; --surface-2:#F6F8FA; --surface-3:#EFF3F6;
+    --ink:#15222E; --ink-soft:#46586A; --ink-faint:#8593A0; --line:#DAE1E8; --line-soft:#E7ECF1;
+    --accent:#0E6E78; --accent-d:#0A555D; --accent-soft:#DFF0F1;
+    --amber:#B0741A; --amber-soft:#F7ECD7;
+    --good:#2C8265; --good-soft:#E0F0E9;
+    --dlh:#0E6E78; --edtech:#5B57A6; --ebd:#C2603C;
+    --shadow:0 1px 2px rgba(21,34,46,.04), 0 6px 20px rgba(21,34,46,.06);
+    --shadow-lg:0 12px 40px rgba(21,34,46,.12);
+    --r:14px; --r-s:9px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:Inter,system-ui,sans-serif; font-size:15px; line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'IBM Plex Mono',monospace}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+
+  /* ---- Header ---- */
+  header.top{padding:30px 0 18px}
+  .brandrow{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:600}
+  h1.title{font-family:Archivo,sans-serif;font-weight:800;font-size:clamp(27px,4vw,40px);line-height:1.04;letter-spacing:-.018em;margin:7px 0 6px}
+  .sub{color:var(--ink-soft);max-width:640px;font-size:14.5px}
+  .sub b{color:var(--ink);font-weight:600}
+  .toolbtns{display:flex;gap:8px;flex-wrap:wrap}
+  .gbtn{font-family:Inter;font-size:12.5px;font-weight:600;color:var(--ink-soft);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 13px;cursor:pointer;transition:.15s;white-space:nowrap}
+  .gbtn:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* ---- Tabs ---- */
+  nav.tabs{position:sticky;top:0;z-index:40;background:rgba(235,238,242,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);margin-top:14px}
+  .tabsinner{display:flex;gap:4px;max-width:1180px;margin:0 auto;padding:0 22px}
+  .tab{appearance:none;background:none;border:none;font-family:Archivo;font-weight:600;font-size:14.5px;color:var(--ink-faint);padding:15px 4px;margin-right:22px;cursor:pointer;border-bottom:2.5px solid transparent;display:flex;align-items:center;gap:9px;transition:.15s}
+  .tab .tnum{font-family:'IBM Plex Mono';font-size:11px;font-weight:600;background:var(--surface-3);color:var(--ink-faint);border-radius:5px;padding:2px 6px;transition:.15s}
+  .tab:hover{color:var(--ink-soft)}
+  .tab.active{color:var(--ink)}
+  .tab.active{border-bottom-color:var(--accent)}
+  .tab.active .tnum{background:var(--accent);color:#fff}
+
+  main{padding:26px 0 80px}
+  .view{display:none;animation:fade .25s ease}
+  .view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  .section-lead{display:flex;gap:16px;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap}
+  .section-lead h2{font-family:Archivo;font-weight:700;font-size:21px;letter-spacing:-.01em;margin:0 0 3px}
+  .section-lead p{margin:0;color:var(--ink-soft);font-size:14px;max-width:680px}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+  .pad{padding:20px 22px}
+
+  /* ---- Lens selector ---- */
+  .lensbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:8px 8px 8px 18px;box-shadow:var(--shadow)}
+  .lensbar .ll{font-size:12.5px;color:var(--ink-soft);font-weight:600;display:flex;align-items:center;gap:7px}
+  .lensbar .ll svg{width:15px;height:15px;stroke:var(--ink-faint)}
+  .lenspills{display:flex;gap:5px;flex-wrap:wrap}
+  .lpill{font-family:Inter;font-size:13px;font-weight:600;border:1px solid var(--line);background:var(--surface-2);color:var(--ink-soft);border-radius:999px;padding:7px 14px;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:7px}
+  .lpill .dot{width:9px;height:9px;border-radius:50%;background:var(--ink-faint)}
+  .lpill:hover{border-color:var(--ink-faint)}
+  .lpill.on{color:#fff;border-color:transparent}
+  .lpill.on .dot{background:rgba(255,255,255,.85)}
+  .lpill[data-l="gemeinsam"].on{background:var(--ink)}
+  .lpill[data-l="dlh"].on{background:var(--dlh)}
+  .lpill[data-l="edtech"].on{background:var(--edtech)}
+  .lpill[data-l="ebd"].on{background:var(--ebd)}
+  .lpill[data-l="gemeinsam"] .dot{background:var(--ink)}
+  .lpill[data-l="dlh"] .dot{background:var(--dlh)}
+  .lpill[data-l="edtech"] .dot{background:var(--edtech)}
+  .lpill[data-l="ebd"] .dot{background:var(--ebd)}
+
+  /* ---- Map ---- */
+  .gridtwo{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;align-items:start}
+  @media(max-width:880px){.gridtwo{grid-template-columns:1fr}}
+  .maphead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .maphead h3{font-family:Archivo;font-weight:700;font-size:15.5px;margin:0}
+  .maphead .hint{font-size:12px;color:var(--ink-faint)}
+  #mapsvg{width:100%;height:auto;display:block;border-radius:var(--r-s);overflow:visible}
+  .qlabel{font-family:'IBM Plex Mono';font-size:10.5px;font-weight:600;letter-spacing:.04em;fill:var(--ink-faint);text-transform:uppercase}
+  .axlabel{font-family:'IBM Plex Mono';font-size:11px;fill:var(--ink-soft);font-weight:500}
+  .bub{cursor:pointer;transition:transform .55s cubic-bezier(.4,0,.2,1),opacity .2s}
+  .bub circle{transition:r .2s,stroke-width .15s}
+  .bub text{font-family:'IBM Plex Mono';font-size:9.5px;font-weight:600;fill:#fff;pointer-events:none}
+  .bub:hover circle{stroke:var(--ink);stroke-width:2px}
+  .bub.dim{opacity:.18}
+
+  .maplegend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:11.5px;color:var(--ink-soft)}
+  .maplegend span{display:flex;align-items:center;gap:6px}
+  .maplegend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+  /* ---- Ranked list ---- */
+  .ranklist{display:flex;flex-direction:column;gap:0}
+  .rl-head{display:flex;justify-content:space-between;align-items:baseline;padding:0 2px 8px}
+  .rl-head h3{font-family:Archivo;font-weight:700;font-size:15.5px;margin:0}
+  .ritem{display:flex;align-items:center;gap:12px;padding:11px 13px;border:1px solid var(--line);border-radius:var(--r-s);margin-bottom:7px;background:var(--surface);cursor:pointer;transition:.13s}
+  .ritem:hover{border-color:var(--accent);box-shadow:var(--shadow)}
+  .ritem.open{border-color:var(--accent);box-shadow:var(--shadow)}
+  .rrank{font-family:'IBM Plex Mono';font-size:13px;font-weight:600;color:var(--ink-faint);width:22px;text-align:right;flex:none}
+  .rcode{font-family:'IBM Plex Mono';font-size:10px;font-weight:600;color:#fff;border-radius:4px;padding:2px 6px;flex:none}
+  .rname{flex:1;font-size:13.5px;font-weight:500;line-height:1.3}
+  .rowner{font-size:11px;color:var(--ink-faint);flex:none}
+  .rscore{font-family:'IBM Plex Mono';font-size:13px;font-weight:600;flex:none;width:34px;text-align:right}
+  .rcontest{flex:none;width:9px;height:9px;border-radius:50%;background:var(--line)}
+  .rcontest.hi{background:var(--amber)}
+  .rcontest.mid{background:#D9C089}
+
+  /* expand editor */
+  .reditor{margin:-3px 0 9px;padding:15px 16px 17px;border:1px solid var(--accent);border-top:none;border-radius:0 0 var(--r-s) var(--r-s);background:var(--surface-2);animation:fade .2s}
+  .crit{display:grid;grid-template-columns:160px 1fr 30px;gap:12px;align-items:center;margin-bottom:9px}
+  .crit label{font-size:12.5px;color:var(--ink-soft);font-weight:500}
+  .crit .cv{font-family:'IBM Plex Mono';font-size:12.5px;font-weight:600;text-align:right;color:var(--ink)}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:5px;background:var(--line);outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;border-radius:50%;background:var(--accent);border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.2);cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--accent);border:2.5px solid #fff;cursor:pointer}
+  .owneredit{display:flex;align-items:center;gap:8px;margin-top:11px;padding-top:11px;border-top:1px dashed var(--line)}
+  .owneredit label{font-size:12px;color:var(--ink-soft);font-weight:500}
+  .owneredit input{font-family:Inter;font-size:12.5px;border:1px solid var(--line);border-radius:6px;padding:5px 9px;flex:1;color:var(--ink);background:#fff}
+  .owneredit input:focus{outline:none;border-color:var(--accent)}
+  .reditnote{font-size:11.5px;color:var(--ink-faint);margin-top:11px;line-height:1.4}
+  .layerchip{font-family:'IBM Plex Mono';font-size:10px;font-weight:600;border-radius:4px;padding:2px 7px}
+
+  /* ---- Perspektiven ---- */
+  .pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:820px){.pgrid{grid-template-columns:1fr}}
+  .pcard{border-top:4px solid var(--line)}
+  .pcard.dlh{border-top-color:var(--dlh)}
+  .pcard.edtech{border-top-color:var(--edtech)}
+  .pcard.ebd{border-top-color:var(--ebd)}
+  .pcard h3{font-family:Archivo;font-weight:700;font-size:16px;margin:0 0 2px;display:flex;align-items:center;gap:8px}
+  .pcard h3 .pdot{width:11px;height:11px;border-radius:50%}
+  .pcard .pdesc{font-size:12px;color:var(--ink-soft);margin:0 0 14px;min-height:32px}
+  .wrow{display:grid;grid-template-columns:1fr 26px;gap:10px;align-items:center;margin-bottom:7px}
+  .wrow label{font-size:12px;color:var(--ink-soft)}
+  .wrow .wv{font-family:'IBM Plex Mono';font-size:11.5px;font-weight:600;text-align:right}
+  .ptop{margin-top:13px;padding-top:12px;border-top:1px solid var(--line-soft)}
+  .ptop .ptl{font-size:10.5px;font-family:'IBM Plex Mono';letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px}
+  .ptop ol{margin:0;padding-left:18px;font-size:12.5px;color:var(--ink)}
+  .ptop ol li{margin-bottom:3px;line-height:1.3}
+
+  .contestbox{margin-top:20px}
+  .contestbox .cb-h{display:flex;align-items:center;gap:9px;margin-bottom:4px}
+  .contestbox h3{font-family:Archivo;font-weight:700;font-size:17px;margin:0}
+  .contestbox .cb-sub{color:var(--ink-soft);font-size:13px;margin:0 0 14px;max-width:680px}
+  .ctable{width:100%;border-collapse:collapse;font-size:13px}
+  .ctable th{text-align:left;font-family:'IBM Plex Mono';font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;padding:0 10px 9px;border-bottom:1px solid var(--line)}
+  .ctable th.num,.ctable td.num{text-align:center}
+  .ctable td{padding:11px 10px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+  .ctable tr:last-child td{border-bottom:none}
+  .ctable .cn{font-weight:500}
+  .rankpill{display:inline-block;min-width:26px;font-family:'IBM Plex Mono';font-size:12px;font-weight:600;border-radius:6px;padding:3px 0;color:#fff}
+  .spreadbar{height:7px;border-radius:4px;background:var(--surface-3);position:relative;overflow:hidden;min-width:60px}
+  .spreadbar i{position:absolute;top:0;bottom:0;left:0;border-radius:4px}
+  .verdict{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap}
+  .verdict.konsens{background:var(--good-soft);color:var(--good)}
+  .verdict.umstritten{background:var(--amber-soft);color:var(--amber)}
+  .verdict.mittel{background:var(--surface-3);color:var(--ink-soft)}
+
+  /* ---- Übergang ---- */
+  .phaserail{display:flex;flex-direction:column;gap:16px}
+  .phase{position:relative;padding-left:34px}
+  .phase::before{content:"";position:absolute;left:11px;top:6px;bottom:-16px;width:2px;background:var(--line)}
+  .phase:last-child::before{display:none}
+  .pnode{position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:var(--surface);border:3px solid var(--accent);z-index:2}
+  .phase.done .pnode{background:var(--accent)}
+  .pheader{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:3px}
+  .pkicker{font-family:'IBM Plex Mono';font-size:11px;font-weight:600;color:var(--accent);letter-spacing:.04em}
+  .phase h3{font-family:Archivo;font-weight:700;font-size:17px;margin:0}
+  .pgoal{color:var(--ink-soft);font-size:13px;margin:0 0 12px;max-width:720px}
+  .pbody{display:grid;grid-template-columns:1fr 270px;gap:16px}
+  @media(max-width:760px){.pbody{grid-template-columns:1fr}}
+  .measures{list-style:none;margin:0;padding:0}
+  .measures li{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--line-soft);font-size:13.5px;cursor:pointer}
+  .measures li:last-child{border-bottom:none}
+  .mcheck{flex:none;width:19px;height:19px;border:2px solid var(--line);border-radius:5px;margin-top:1px;display:flex;align-items:center;justify-content:center;transition:.13s}
+  .mcheck svg{width:12px;height:12px;stroke:#fff;opacity:0}
+  .measures li.checked .mcheck{background:var(--good);border-color:var(--good)}
+  .measures li.checked .mcheck svg{opacity:1}
+  .measures li.checked .mtxt{color:var(--ink-faint);text-decoration:line-through}
+  .mtxt{line-height:1.35}
+  .mtag{font-family:'IBM Plex Mono';font-size:9.5px;color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:1px 5px;margin-left:6px;white-space:nowrap;vertical-align:1px}
+  .gate{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-s);padding:13px 15px;height:fit-content}
+  .gate .gl{font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);font-weight:600;display:flex;align-items:center;gap:6px;margin-bottom:7px}
+  .gate p{margin:0;font-size:13px;color:var(--ink);line-height:1.4}
+  .gate .gq{font-size:11.5px;color:var(--ink-soft);margin-top:8px;font-style:italic}
+
+  /* RACI */
+  .raciwrap{overflow-x:auto;border-radius:var(--r-s);border:1px solid var(--line)}
+  table.raci{width:100%;border-collapse:collapse;font-size:13px;min-width:680px;background:var(--surface)}
+  table.raci th{background:var(--surface-2);font-family:Inter;font-weight:600;font-size:12px;color:var(--ink-soft);padding:11px 9px;text-align:center;border-bottom:1px solid var(--line);border-left:1px solid var(--line-soft)}
+  table.raci th.rowh{text-align:left;min-width:190px;position:sticky;left:0;background:var(--surface-2);z-index:1}
+  table.raci td{padding:7px 9px;text-align:center;border-bottom:1px solid var(--line-soft);border-left:1px solid var(--line-soft)}
+  table.raci td.rowh{text-align:left;font-weight:500;font-size:12.5px;position:sticky;left:0;background:var(--surface);z-index:1;line-height:1.25}
+  .racicell{appearance:none;border:none;background:none;cursor:pointer;width:30px;height:30px;border-radius:7px;font-family:'IBM Plex Mono';font-weight:600;font-size:13px;transition:.12s;color:var(--ink-faint)}
+  .racicell:hover{background:var(--surface-3)}
+  .racicell[data-v="R"]{background:var(--accent);color:#fff}
+  .racicell[data-v="A"]{background:var(--amber);color:#fff}
+  .racicell[data-v="C"]{background:var(--accent-soft);color:var(--accent-d)}
+  .racicell[data-v="I"]{background:var(--surface-3);color:var(--ink-soft)}
+  .racilegend{display:flex;gap:16px;flex-wrap:wrap;margin-top:11px;font-size:12px;color:var(--ink-soft)}
+  .racilegend b{font-family:'IBM Plex Mono';font-weight:600}
+  .raci-hint{font-size:12px;color:var(--ink-faint);margin:0 0 12px}
+
+  .blocktitle{font-family:Archivo;font-weight:700;font-size:17px;margin:34px 0 5px;display:flex;align-items:center;gap:9px}
+  .blocktitle .bt-n{font-family:'IBM Plex Mono';font-size:12px;color:#fff;background:var(--ink);border-radius:6px;padding:3px 8px}
+  .blockintro{color:var(--ink-soft);font-size:13.5px;margin:0 0 16px;max-width:720px}
+
+  /* tooltip */
+  #tip{position:fixed;z-index:200;background:var(--ink);color:#fff;font-size:12px;padding:7px 11px;border-radius:8px;pointer-events:none;opacity:0;transition:opacity .12s;max-width:240px;line-height:1.35;box-shadow:var(--shadow-lg)}
+  #tip .tt-code{font-family:'IBM Plex Mono';font-size:10px;opacity:.7}
+
+  .savetag{font-size:11px;color:var(--ink-faint);font-family:'IBM Plex Mono'}
+  footer{padding:26px 0 50px;color:var(--ink-faint);font-size:12px;border-top:1px solid var(--line);margin-top:10px}
+  footer b{color:var(--ink-soft)}
+
+  /* vorarbeit-sicher */
+  .rsafe{flex:none;display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;border-radius:5px;background:var(--good-soft)}
+  .rsafe svg{width:11px;height:11px;stroke:var(--good)}
+  .bub .safering{fill:none;stroke:var(--good);stroke-width:2;stroke-dasharray:3 3;opacity:.95}
+  .vlead-badge{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--good);background:var(--good-soft);border-radius:999px;padding:7px 14px;margin-top:14px}
+  .vlead-badge svg{width:14px;height:14px;stroke:var(--good)}
+  .prepgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  @media(max-width:820px){.prepgrid{grid-template-columns:1fr}}
+  .prepcard{border-left:4px solid var(--good)}
+  .prepcard .pc-top{display:flex;align-items:flex-start;gap:11px;margin-bottom:2px}
+  .prepcard .pc-code{font-family:'IBM Plex Mono';font-size:10px;font-weight:600;color:#fff;border-radius:4px;padding:3px 7px;flex:none;margin-top:2px}
+  .prepcard h3{font-family:Archivo;font-weight:700;font-size:15px;margin:0;line-height:1.25;flex:1}
+  .prepcard .pc-meta{display:flex;gap:7px;flex-wrap:wrap;margin:9px 0 15px;font-size:10.5px;font-family:'IBM Plex Mono'}
+  .prepcard .pc-meta span{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:6px;padding:3px 8px;color:var(--ink-faint)}
+  .pfield{margin-bottom:12px}
+  .pfield:last-child{margin-bottom:0}
+  .pfield label{display:block;font-size:10.5px;font-family:'IBM Plex Mono';letter-spacing:.04em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;margin-bottom:5px}
+  .pfield input,.pfield textarea{width:100%;font-family:Inter;font-size:13px;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface-2);resize:vertical;line-height:1.45}
+  .pfield input:focus,.pfield textarea:focus{outline:none;border-color:var(--good);background:#fff}
+  .pfield textarea{min-height:50px}
+  .vempty{text-align:center;padding:48px 20px;color:var(--ink-soft);grid-column:1/-1}
+  .vempty h3{font-family:Archivo;font-size:18px;color:var(--ink);margin:0 0 7px}
+  .vempty p{margin:0 auto;max-width:440px;font-size:13.5px;line-height:1.5}
+
+  @media print{
+    nav.tabs,.toolbtns,.lensbar{display:none!important}
+    .view{display:block!important;page-break-after:always}
+    body{background:#fff}
+    .reditor{display:none!important}
+  }
+</style>
+</head>
+<body>
+<div id="tip"></div>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brandrow">
+      <div>
+        <div class="eyebrow">Future Learning Lab KI · Strang 2 — Übergang</div>
+        <h1 class="title">Den Übergang steuern,<br>statt durcheinanderzureden.</h1>
+        <p class="sub">Ein Arbeitsinstrument fürs Kernteam <b>DLH · EdTech · EB&nbsp;digital</b>. Während Strang&nbsp;1 die Ausgabenbewilligung sichert, klärt dieses Tool das Wie des Übergangs: Es macht <b>Bewertungskriterien</b> und die <b>Gewichtung jedes Hauses</b> explizit — und zeigt so, wo echter Konsens herrscht und wo nur unterschiedlich gewichtet wird.</p>
+      </div>
+      <div class="toolbtns">
+        <button class="gbtn" onclick="exportJSON()">Stand exportieren</button>
+        <button class="gbtn" onclick="document.getElementById('imp').click()">Importieren</button>
+        <button class="gbtn" onclick="window.print()">Drucken / PDF</button>
+        <button class="gbtn" onclick="resetAll()">Zurücksetzen</button>
+        <input type="file" id="imp" accept="application/json" style="display:none" onchange="importJSON(event)">
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs">
+  <div class="tabsinner">
+    <button class="tab active" data-v="prio"><span class="tnum">1</span>Priorisierung</button>
+    <button class="tab" data-v="persp"><span class="tnum">2</span>Perspektiven</button>
+    <button class="tab" data-v="ueber"><span class="tnum">3</span>Übergang &amp; Rollen</button>
+    <button class="tab" data-v="vorarbeit"><span class="tnum">4</span>Vorarbeit</button>
+  </div>
+</nav>
+
+<main>
+<div class="wrap">
+
+<!-- ============ VIEW 1: PRIORISIERUNG ============ -->
+<section class="view active" id="view-prio">
+  <div class="section-lead">
+    <div>
+      <h2>Welche Initiativen zuerst?</h2>
+      <p>Alle 20 Vorhaben aus dem Papier, bewertet entlang fünf gemeinsamer Kriterien. Wähle eine Brille — die Karte und die Rangliste ordnen sich live neu. Klick auf eine Initiative, um Bewertung und Owner anzupassen.</p>
+    </div>
+  </div>
+
+  <div class="lensbar">
+    <span class="ll"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Brille</span>
+    <div class="lenspills" id="lenspills"></div>
+  </div>
+
+  <div class="gridtwo">
+    <div class="card pad">
+      <div class="maphead">
+        <h3>Nutzen × Aufwand</h3>
+        <span class="hint" id="maphint">Bubble-Grösse = strategische Bedeutung</span>
+      </div>
+      <svg id="mapsvg" viewBox="0 0 560 470"></svg>
+      <div class="maplegend">
+        <span><i style="background:var(--accent)"></i>KI-Schicht</span>
+        <span><i style="background:var(--edtech)"></i>Daten-Schicht</span>
+        <span><i style="background:var(--ebd)"></i>Governance-Schicht</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="rl-head">
+        <h3>Rangliste</h3>
+        <span class="savetag" id="savetag">gespeichert</span>
+      </div>
+      <div class="ranklist" id="ranklist"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VIEW 2: PERSPEKTIVEN ============ -->
+<section class="view" id="view-persp">
+  <div class="section-lead">
+    <div>
+      <h2>Warum ihr aneinander vorbeiredet</h2>
+      <p>Die drei Häuser gewichten dieselben Kriterien unterschiedlich — das ist legitim und der eigentliche Grund fürs „Durcheinander". Stellt hier die Gewichtungen so ein, wie sie real sind. Die Tabelle unten zeigt dann, welche Initiativen wirklich umstritten sind (und Diskussion brauchen) und wo längst Konsens herrscht.</p>
+    </div>
+  </div>
+
+  <div class="pgrid" id="pgrid"></div>
+
+  <div class="contestbox">
+    <div class="cb-h"><h3>Konsens oder umstritten?</h3></div>
+    <p class="cb-sub">Rang jeder Initiative unter den drei Hausbrillen. Grosse Spannweite = ihr seht dieselbe Sache verschieden — hier lohnt die Aussprache. Kleine Spannweite = stiller Konsens, hier braucht es keine Debatte mehr.</p>
+    <div class="card pad">
+      <table class="ctable">
+        <thead><tr>
+          <th>Initiative</th>
+          <th class="num" style="color:var(--dlh)">DLH</th>
+          <th class="num" style="color:var(--edtech)">EdTech</th>
+          <th class="num" style="color:var(--ebd)">EB&nbsp;digital</th>
+          <th>Spannweite der Ränge</th>
+          <th>Befund</th>
+        </tr></thead>
+        <tbody id="ctbody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VIEW 3: ÜBERGANG ============ -->
+<section class="view" id="view-ueber">
+  <div class="section-lead">
+    <div>
+      <h2>Vom verstreuten Experiment zum Lab</h2>
+      <p>Vier Phasen von jetzt bis zur Realisierung 2027 — mit konkreten organisatorischen Massnahmen, einem Entscheid-Gate pro Phase und den offenen Rollenfragen aus dem Papier. Hak ab, was erledigt ist.</p>
+    </div>
+  </div>
+
+  <div class="phaserail" id="phaserail"></div>
+
+  <div class="blocktitle"><span class="bt-n">R</span>Rollen &amp; Entscheidrechte klären</div>
+  <p class="blockintro">Das Papier hält fest: „Organisationsstruktur und Rollenkonzept müssen noch erarbeitet werden." Hier ein RACI-Vorschlag als Diskussionsgrundlage — pro Entscheidung genau ein <b>A</b> (rechenschaftspflichtig). Klick eine Zelle, um R → A → C → I → leer zu wechseln. Genau diese Matrix beendet das „aus eigener Perspektive argumentieren": Wer entscheidet was, ist danach geklärt.</p>
+  <div class="card pad">
+    <div class="raciwrap">
+      <table class="raci" id="racitable"></table>
+    </div>
+    <div class="racilegend">
+      <span><b>R</b> — führt aus (Responsible)</span>
+      <span><b>A</b> — entscheidet / verantwortet (Accountable)</span>
+      <span><b>C</b> — wird konsultiert</span>
+      <span><b>I</b> — wird informiert</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VIEW 4: VORARBEIT ============ -->
+<section class="view" id="view-vorarbeit">
+  <div class="section-lead">
+    <div>
+      <h2>Was sich jetzt schon vorbereiten lässt</h2>
+      <p>Nur Vorhaben, die <b>bei allen drei Häusern weit oben</b> stehen und <b>kaum umstritten</b> sind (kleine Rang-Spannweite). Hier ist Vorarbeit verlorensicher — sie übersteht die gemeinsame Aussprache mit hoher Wahrscheinlichkeit. Befüllt die Vorlagen direkt im Workshop; die Liste aktualisiert sich, sobald ihr Bewertungen oder Gewichtungen ändert.</p>
+      <div id="vbadge"></div>
+    </div>
+  </div>
+  <div class="prepgrid" id="prepgrid"></div>
+</section>
+
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <b>Future Learning Lab KI</b> · Übergangs-Cockpit · Arbeitsstand zum Papier v0.45 (André Dinter, 06.06.2026). Startwerte sind Vorschläge zum Reagieren, kein Beschluss. Stand bleibt im Browser gespeichert; für den Workshop „Stand exportieren" und teilen.
+  </div>
+</footer>
+
+<script>
+/* ============================================================
+   DATEN — Initiativen aus dem FLLKI-Papier
+   Kriterien (1–5):
+   paed = pädagogischer Hebel · strat = strategische Bedeutung
+   mach = Machbarkeit/Reifegrad jetzt · risk = Governance-/Datenschutz-Risiko
+   res  = Ressourcenbedarf
+   Startwerte = Vorschlag aus der Tonalität des Papiers, editierbar.
+   ============================================================ */
+const LAYERS = {
+  KI:  {name:'KI-Schicht', color:'var(--accent)', hex:'#0E6E78'},
+  DAT: {name:'Daten-Schicht', color:'var(--edtech)', hex:'#5B57A6'},
+  GOV: {name:'Governance-Schicht', color:'var(--ebd)', hex:'#C2603C'}
+};
+
+const INITIATIVES = [
+  {id:'K1', layer:'KI', name:'Web-Apps: Blueprints für Unterrichtsanwendungen (Fobizz/ToTeach, Brian, FelloFish)', owner:'Pascal', paed:4,strat:3,mach:4,risk:2,res:2},
+  {id:'K2', layer:'KI', name:'NotebookLM als Wissensbasis & Arbeitsinstrument', owner:'Benaja', paed:4,strat:3,mach:5,risk:2,res:2},
+  {id:'K3', layer:'KI', name:'MS Copilot: Rolle im Bildungsumfeld schärfen + Lizenzen klären', owner:'Christof', paed:3,strat:3,mach:3,risk:3,res:3},
+  {id:'K4', layer:'KI', name:'Vibe-Coding im Unterricht — Muster-UseCases', owner:'Christof / Graziano', paed:4,strat:4,mach:4,risk:2,res:3},
+  {id:'K5', layer:'KI', name:'Fach-/berufsspezifische KI-Assistenten (z.B. Mathebot Köche)', owner:'NN', paed:4,strat:4,mach:3,risk:2,res:4},
+  {id:'K6', layer:'KI', name:'Sokratische Tutoren & multimodale Inhaltserstellung', owner:'Pascal Schmidt', paed:5,strat:4,mach:3,risk:2,res:3},
+  {id:'K7', layer:'KI', name:'KI-Literacy: RAG vs. Prompt-Finetuning Spielwiese', owner:'Graziano', paed:3,strat:4,mach:3,risk:2,res:4},
+  {id:'K8', layer:'KI', name:'Multi-Agenten-System für mündliche Prüfungen', owner:'Roy', paed:4,strat:5,mach:2,risk:4,res:4},
+  {id:'K9', layer:'KI', name:'AIS/ITS — openSource ais.schule (FWU)', owner:'Roy', paed:5,strat:5,mach:2,risk:4,res:5},
+  {id:'K10',layer:'KI', name:'VR-Unterrichtswelten mit KI designen', owner:'Roy', paed:3,strat:3,mach:2,risk:2,res:5},
+  {id:'K11',layer:'KI', name:'KI-Tandem BFS–Lehrbetrieb', owner:'NN', paed:4,strat:4,mach:2,risk:2,res:4},
+  {id:'D1', layer:'DAT',name:'Learning Analytics — deskriptives Moodle-Dashboard als Einstieg', owner:'NN', paed:4,strat:4,mach:4,risk:3,res:3},
+  {id:'D2', layer:'DAT',name:'Prozess-Monitoring (Versioning) bei längeren Arbeiten', owner:'NN', paed:4,strat:4,mach:3,risk:4,res:4},
+  {id:'D3', layer:'DAT',name:'Prüfungskultur in Zeiten von KI (Grundsatzklärung)', owner:'NN', paed:4,strat:5,mach:3,risk:2,res:2},
+  {id:'D4', layer:'DAT',name:'KI-gestützte Prüfungskorrektur (Stift+ ETH / isTest)', owner:'Graziano', paed:4,strat:4,mach:3,risk:3,res:4},
+  {id:'D5', layer:'DAT',name:'eAssessment: neue Prüfungsarchitektur (ELIAS / Multi-Agent)', owner:'Alex', paed:4,strat:5,mach:2,risk:4,res:4},
+  {id:'D6', layer:'DAT',name:'KI-Buddy fürs Selbststudium (Flipped Classroom)', owner:'NN', paed:4,strat:3,mach:5,risk:2,res:3},
+  {id:'G1', layer:'GOV',name:'Lokale / private LLMs — Datenschutz (Innovationsfonds EB)', owner:'Roy / Christian', paed:3,strat:4,mach:2,risk:2,res:5},
+  {id:'G2', layer:'GOV',name:'Rollen- & Zugriffssysteme über MS Teams (Projekt Portal)', owner:'Projekt Portal', paed:2,strat:4,mach:3,risk:3,res:3},
+  {id:'G3', layer:'GOV',name:'Externes Know-How einbinden (tutor.new etc.)', owner:'Roy', paed:3,strat:3,mach:3,risk:3,res:2}
+];
+
+/* Brillen — Gewichtung der Kriterien. Hypothesen, editierbar. */
+const LENS_DEFAULT = {
+  gemeinsam:{label:'Gemeinsam', desc:'Alle Kriterien gleich gewichtet — der neutrale Ausgangspunkt.', paed:1,strat:1,mach:1,risk:1,res:1},
+  dlh:      {label:'DLH', desc:'Pädagogik steuert. Pädagogischer Hebel und strategischer Bezug zählen am meisten; hoher Aufwand wird in Kauf genommen.', paed:1.6,strat:1.4,mach:0.8,risk:1.0,res:0.7},
+  edtech:   {label:'EdTech', desc:'Machbarkeit, Datenschutz und Betrieb zuerst. Was technisch reif und governance-sicher ist, hat Vorrang.', paed:0.9,strat:1.0,mach:1.5,risk:1.6,res:1.3},
+  ebd:      {label:'EB digital', desc:'Praxisnah und schnell wirksam. Hoher pädagogischer Nutzen bei guter Machbarkeit, risikotoleranter.', paed:1.4,strat:0.9,mach:1.4,risk:0.9,res:1.0}
+};
+const CRIT = [
+  {k:'paed', label:'Pädagogischer Hebel'},
+  {k:'strat',label:'Strategische Bedeutung'},
+  {k:'mach', label:'Machbarkeit / Reifegrad'},
+  {k:'risk', label:'Governance-/Datenschutz-Risiko'},
+  {k:'res',  label:'Ressourcenbedarf'}
+];
+
+/* ============ ÜBERGANGSPHASEN ============ */
+const PHASES = [
+  {id:'p0', kicker:'Jetzt · Q3 2026', title:'Fundament legen', goal:'Bevor Vorhaben laufen, muss das Kernteam entscheidungsfähig sein. Das Papier lässt Organisationsstruktur und Rollenkonzept offen — das wird jetzt geschlossen.',
+   measures:[
+     {t:'Organisationsstruktur DLH·EdTech·EB digital definieren (wer gehört zum Kernteam?)', tag:'Org'},
+     {t:'Rollenkonzept / RACI verabschieden (siehe Matrix unten)', tag:'Org'},
+     {t:'Entscheidweg Topic-Board → Kernteam → Fachausschuss festlegen', tag:'Org'},
+     {t:'Verbindlichkeit & Zeitbudget der LP-Innovatoren klären', tag:'R1/R3'},
+     {t:'Governance-Prüfprozess für Tool-Erprobungen aufsetzen', tag:'Obj.4'}
+   ],
+   gate:'Steht ein verabschiedetes Rollen- & Entscheidmodell?',
+   gq:'Solange das offen ist, argumentiert jedes Haus aus seiner Sicht — kein Vorhaben sollte vorher gestartet werden.'},
+
+  {id:'p1', kicker:'Brücke · bis Herbst 2026', title:'Sichtbar liefern & Geld sichern', goal:'Parallel zur Organisation entsteht erstes Vorzeigbares. Quick Wins aus der Priorisierung schaffen Glaubwürdigkeit für die Ausgabenbewilligung.',
+   measures:[
+     {t:'Ausgabenbewilligung einreichen, politische Unterstützung sichern', tag:'R7'},
+     {t:'Personal-/Betriebsressourcen explizit in der Bewilligung ausweisen', tag:'R8'},
+     {t:'Mind. 5 priorisierte Use Cases dokumentieren & dem Fachausschuss vorlegen', tag:'Obj.1·KR1'},
+     {t:'Erste „Quick Win"-Erprobungen im Schulzimmer starten (Top-Quadrant der Karte)', tag:'Obj.1·KR3'},
+     {t:'Steckbrief mündliche eAssessments (Alex) finalisieren', tag:'Daten'}
+   ],
+   gate:'Ist die Bewilligung eingereicht und liegen 5 dokumentierte Use Cases vor?',
+   gq:'Die Quick Wins aus Ansicht 1 sind hier das Material — nicht die grossen Langläufer.'},
+
+  {id:'p2', kicker:'Aufbau · Q4 2026 – 2027', title:'Pilotieren & Roadmap schärfen', goal:'Der Fachausschuss wird wirksam, die strategischen Vorhaben gehen in kontrollierte Pilotierung. Governance läuft jetzt operativ mit.',
+   measures:[
+     {t:'Fachausschuss tagt ≥ 2× und verabschiedet Roadmap 2027/28', tag:'Obj.1·KR2'},
+     {t:'Learning-Analytics-Konzept pilotieren & bewerten', tag:'Obj.3·KR1'},
+     {t:'Prozess-Monitoring-Prototyp testen (Chancen/Datenschutz)', tag:'Obj.3·KR2'},
+     {t:'Bericht lokales LLM mit klarer Empfehlung erstellen', tag:'Obj.4/R5'},
+     {t:'AIS-Evaluationsbericht (ais.schule) inkl. Pilot-Empfehlung', tag:'Obj.5·KR1'}
+   ],
+   gate:'Liegt eine vom Fachausschuss verabschiedete Roadmap 2027/28 vor?',
+   gq:'Hier entscheidet sich, welche strategischen Vorhaben (rechter Quadrant) tatsächlich in die Realisierung gehen.'},
+
+  {id:'p3', kicker:'Realisierung · 2027 +', title:'Überführen in den Betrieb', goal:'Bewährtes wird verstetigt — mit gesicherten Ressourcen, geklärtem Datenschutz und definierter Betriebsverantwortung.',
+   measures:[
+     {t:'Entscheid AIS/ITS-Pilotierung & ggf. Einführung', tag:'Obj.5'},
+     {t:'Risikoanalyse summative eAssessments (ELIAS/DSI) verabschieden', tag:'Obj.5·KR3'},
+     {t:'Betrieb, Beratung & Begleitung sicherstellen', tag:'Org'},
+     {t:'Ressourcenbedarf gedeckt & verankert', tag:'R8'},
+     {t:'Abgrenzung/Übergaben zur DLH-Website GenKI klären', tag:'Org'}
+   ],
+   gate:'Sind Betrieb und Finanzierung der überführten Vorhaben dauerhaft gesichert?',
+   gq:'Was hier nicht trägt, wandert bewusst zurück in die Sandbox oder wird eingestellt — ein Negativentscheid ist ein valides Ergebnis.'}
+];
+
+/* ============ RACI ============ */
+const RACI_ROLES = ['Topic-Board','Kernteam DLH·EdTech·EBd','Fachausschuss / Soundingboard','LP-Innovatoren','EdTech (Governance)','Leitung'];
+const RACI_DECISIONS = [
+  {d:'Themen aufnehmen & einspeisen', def:['A','R','I','C','I','I']},
+  {d:'Themen priorisieren & Potenzial analysieren', def:['C','A','C','I','C','I']},
+  {d:'Tool-Erprobung im Unterricht freigeben', def:['I','R','C','R','A','I']},
+  {d:'Governance-/Datenschutz-Entscheid', def:['I','C','C','I','A','C']},
+  {d:'Roadmap 2027/28 verabschieden', def:['I','R','A','C','C','C']},
+  {d:'Ausgaben bewilligen', def:['I','R','C','I','I','A']}
+];
+const RACI_CYCLE = ['R','A','C','I',''];
+
+/* ============================================================ STATE ============ */
+let STATE = null;
+const STORE_KEY = 'fllki_uebergang_v1';
+
+function defaultState(){
+  const sc = {};
+  INITIATIVES.forEach(i=> sc[i.id] = {paed:i.paed,strat:i.strat,mach:i.mach,risk:i.risk,res:i.res,owner:i.owner});
+  const lens = JSON.parse(JSON.stringify(LENS_DEFAULT));
+  const raci = {};
+  RACI_DECISIONS.forEach((d,r)=> raci[r] = d.def.slice());
+  const phase = {}; PHASES.forEach(p=>{ phase[p.id] = {}; p.measures.forEach((m,i)=> phase[p.id][i]=false); });
+  return {scores:sc, lens, raci, phase, prep:{}, activeLens:'gemeinsam', openItem:null};
+}
+
+/* storage with graceful fallback */
+const Persist = {
+  hasAPI: (typeof window!=='undefined' && window.storage && typeof window.storage.get==='function'),
+  async load(){
+    if(this.hasAPI){
+      try{ const r = await window.storage.get(STORE_KEY); if(r&&r.value) return JSON.parse(r.value);}catch(e){}
+    }
+    return null;
+  },
+  async save(state){
+    if(this.hasAPI){
+      try{ await window.storage.set(STORE_KEY, JSON.stringify(state)); flashSaved(); return; }catch(e){}
+    }
+    flashSaved();
+  }
+};
+let saveTimer=null;
+function persist(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>Persist.save(STATE),250); }
+function flashSaved(){ const t=document.getElementById('savetag'); if(!t)return; t.textContent='gespeichert ✓'; t.style.color='var(--good)'; setTimeout(()=>{t.style.color='var(--ink-faint)';t.textContent='gespeichert';},900); }
+
+/* ============================================================ SCORING ============ */
+function scoreOf(id){ return STATE.scores[id]; }
+function lensW(){ return STATE.lens[STATE.activeLens]; }
+
+// Nutzen 0..100 (benefit side weighted), Aufwand 0..100 (cost side weighted)
+function nutzen(id, w){
+  const s=scoreOf(id);
+  const raw = w.paed*s.paed + w.strat*s.strat;        // max 5*(wp+ws)
+  const max = 5*(w.paed+w.strat);
+  return raw/max*100;
+}
+function aufwand(id, w){
+  const s=scoreOf(id);
+  const raw = w.res*s.res + w.risk*s.risk + w.mach*(6-s.mach); // (6-mach): niedrige Machbarkeit = mehr Aufwand
+  const max = 5*(w.res+w.risk+w.mach);
+  return raw/max*100;
+}
+function priority(id, w){ return nutzen(id,w) - aufwand(id,w); } // höher = attraktiver
+function rankUnder(lensKey){
+  const w = STATE.lens[lensKey];
+  return [...INITIATIVES].sort((a,b)=> priority(b.id,w)-priority(a.id,w)).map(i=>i.id);
+}
+// "vorarbeit-sicher": bei allen drei Häusern weit oben (Rang ≤ 8) UND kaum umstritten (Spannweite ≤ 3)
+function safeSet(){
+  const rD=rankUnder('dlh'), rE=rankUnder('edtech'), rB=rankUnder('ebd');
+  const set=new Set();
+  INITIATIVES.forEach(i=>{
+    const a=rD.indexOf(i.id), b=rE.indexOf(i.id), c=rB.indexOf(i.id); // 0-basiert
+    const maxR=Math.max(a,b,c), spread=maxR-Math.min(a,b,c);
+    if(maxR<=7 && spread<=3) set.add(i.id);
+  });
+  return set;
+}
+
+/* ============================================================ RENDER: LENS PILLS ============ */
+function renderLensPills(){
+  const box=document.getElementById('lenspills'); box.innerHTML='';
+  Object.keys(LENS_DEFAULT).forEach(k=>{
+    const b=document.createElement('button');
+    b.className='lpill'+(STATE.activeLens===k?' on':''); b.dataset.l=k;
+    b.innerHTML=`<span class="dot"></span>${LENS_DEFAULT[k].label}`;
+    b.onclick=()=>{ STATE.activeLens=k; persist(); renderLensPills(); renderMap(); renderRanklist(); };
+    box.appendChild(b);
+  });
+}
+
+/* ============================================================ RENDER: MAP ============ */
+function renderMap(){
+  const w = lensW();
+  const W=560,H=470, padL=58,padR=22,padT=22,padB=46;
+  const x0=padL, x1=W-padR, y0=padT, y1=H-padB;
+  const sx = v => x0 + v/100*(x1-x0);            // aufwand low(left)->high(right)
+  const sy = v => y1 - v/100*(y1-y0);            // nutzen low(bottom)->high(top)
+  let svg='';
+  // quadrant background
+  const mx=(x0+x1)/2, my=(y0+y1)/2;
+  svg+=`<rect x="${x0}" y="${y0}" width="${mx-x0}" height="${my-y0}" fill="var(--good-soft)" opacity=".5"/>`;
+  svg+=`<rect x="${mx}" y="${y0}" width="${x1-mx}" height="${my-y0}" fill="var(--accent-soft)" opacity=".45"/>`;
+  svg+=`<rect x="${x0}" y="${my}" width="${mx-x0}" height="${y1-my}" fill="var(--surface-2)"/>`;
+  svg+=`<rect x="${mx}" y="${my}" width="${x1-mx}" height="${y1-my}" fill="var(--amber-soft)" opacity=".4"/>`;
+  // grid frame + mid lines
+  svg+=`<line x1="${mx}" y1="${y0}" x2="${mx}" y2="${y1}" stroke="var(--line)" stroke-dasharray="3 4"/>`;
+  svg+=`<line x1="${x0}" y1="${my}" x2="${x1}" y2="${my}" stroke="var(--line)" stroke-dasharray="3 4"/>`;
+  svg+=`<rect x="${x0}" y="${y0}" width="${x1-x0}" height="${y1-y0}" fill="none" stroke="var(--line)"/>`;
+  // quadrant labels
+  svg+=`<text class="qlabel" x="${x0+10}" y="${y0+18}">Quick Wins · jetzt starten</text>`;
+  svg+=`<text class="qlabel" x="${x1-10}" y="${y0+18}" text-anchor="end">Strategisch · planen</text>`;
+  svg+=`<text class="qlabel" x="${x0+10}" y="${y1-8}">Mitnehmen · nebenbei</text>`;
+  svg+=`<text class="qlabel" x="${x1-10}" y="${y1-8}" text-anchor="end">Kritisch prüfen · ggf. parkieren</text>`;
+  // axes
+  svg+=`<text class="axlabel" x="${(x0+x1)/2}" y="${H-8}" text-anchor="middle">Aufwand &amp; Risiko  →</text>`;
+  svg+=`<text class="axlabel" transform="translate(16,${(y0+y1)/2}) rotate(-90)" text-anchor="middle">Nutzen  →</text>`;
+
+  // bubbles
+  const SAFE=safeSet();
+  const items = INITIATIVES.map(i=>({i, nx:aufwand(i.id,w), ny:nutzen(i.id,w)}));
+  items.forEach(({i,nx,ny})=>{
+    const s=scoreOf(i.id);
+    const r = 9 + (s.strat-1)/4*9;   // size by strategische Bedeutung
+    const cx=sx(nx), cy=sy(ny);
+    const hex = LAYERS[i.layer].hex;
+    const ring = SAFE.has(i.id) ? `<circle class="safering" r="${(r+5).toFixed(1)}"/>` : '';
+    svg+=`<g class="bub" data-id="${i.id}" transform="translate(${cx},${cy})">
+      ${ring}<circle r="${r}" fill="${hex}" fill-opacity=".88" stroke="#fff" stroke-width="1.5"/>
+      <text text-anchor="middle" dy="3.3">${i.id}</text></g>`;
+  });
+  const el=document.getElementById('mapsvg'); el.innerHTML=svg;
+  el.querySelectorAll('.bub').forEach(g=>{
+    const id=g.dataset.id;
+    g.addEventListener('mousemove',e=>showTip(e, tipFor(id)));
+    g.addEventListener('mouseleave',hideTip);
+    g.addEventListener('click',()=>{ switchView('prio'); openItem(id,true); });
+  });
+}
+function tipFor(id){
+  const i=INITIATIVES.find(x=>x.id===id), s=scoreOf(id), w=lensW();
+  return `<span class="tt-code">${id} · ${LAYERS[i.layer].name}</span><br><b>${i.name}</b><br>Nutzen ${nutzen(id,w)|0} · Aufwand ${aufwand(id,w)|0} · Owner ${s.owner||'NN'}`;
+}
+
+/* ============================================================ RENDER: RANKLIST ============ */
+function renderRanklist(){
+  const w=lensW();
+  const ranked=[...INITIATIVES].sort((a,b)=>priority(b.id,w)-priority(a.id,w));
+  // contest spread per item (across 3 houses)
+  const rDLH=rankUnder('dlh'), rEd=rankUnder('edtech'), rEb=rankUnder('ebd');
+  const pos=(arr,id)=>arr.indexOf(id);
+  const box=document.getElementById('ranklist'); box.innerHTML='';
+  ranked.forEach((i,idx)=>{
+    const s=scoreOf(i.id);
+    const ranks=[pos(rDLH,i.id),pos(rEd,i.id),pos(rEb,i.id)];
+    const spread=Math.max(...ranks)-Math.min(...ranks);
+    const maxR=Math.max(...ranks);
+    const safe = maxR<=7 && spread<=3;
+    const cl = spread>=8?'hi':spread>=4?'mid':'';
+    const pscore=Math.round(priority(i.id,w));
+    const row=document.createElement('div');
+    row.className='ritem'+(STATE.openItem===i.id?' open':'');
+    const safeBadge = safe ? `<span class="rsafe" title="Vorarbeit-sicher: bei allen drei Häusern weit oben und kaum umstritten"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>` : '';
+    row.innerHTML=`
+      <span class="rrank mono">${idx+1}</span>
+      <span class="rcode" style="background:${LAYERS[i.layer].hex}">${i.id}</span>
+      <span class="rname">${i.name}</span>
+      <span class="rowner">${s.owner||'NN'}</span>
+      ${safeBadge}
+      <span class="rcontest ${cl}" title="Spannweite zwischen den Hausbrillen: ${spread} Ränge"></span>
+      <span class="rscore mono">${pscore}</span>`;
+    row.addEventListener('mousemove',e=>{ if(cl) showTip(e, `Zwischen den Häusern um ${spread} Ränge umstritten — siehe Ansicht „Perspektiven".`);});
+    row.addEventListener('mouseleave',hideTip);
+    row.onclick=()=>openItem(i.id);
+    box.appendChild(row);
+    if(STATE.openItem===i.id) box.appendChild(buildEditor(i));
+  });
+}
+function buildEditor(i){
+  const s=scoreOf(i.id);
+  const ed=document.createElement('div'); ed.className='reditor';
+  ed.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:11px">
+      <span class="layerchip" style="background:${LAYERS[i.layer].hex}22;color:${LAYERS[i.layer].hex}">${LAYERS[i.layer].name}</span>
+    </div>`;
+  CRIT.forEach(c=>{
+    const row=document.createElement('div'); row.className='crit';
+    row.innerHTML=`<label>${c.label}</label>`;
+    const rng=document.createElement('input'); rng.type='range'; rng.min=1; rng.max=5; rng.step=1; rng.value=s[c.k];
+    const val=document.createElement('span'); val.className='cv'; val.textContent=s[c.k];
+    rng.oninput=()=>{ s[c.k]=+rng.value; val.textContent=rng.value; renderMap(); };
+    rng.onchange=()=>{ renderRanklist(); renderPerspektiven(); renderVorarbeit(); persist(); };
+    row.appendChild(rng); row.appendChild(val); ed.appendChild(row);
+  });
+  const oe=document.createElement('div'); oe.className='owneredit';
+  oe.innerHTML=`<label>Owner</label>`;
+  const inp=document.createElement('input'); inp.value=s.owner||''; inp.placeholder='NN';
+  inp.oninput=()=>{ s.owner=inp.value; persist(); };
+  inp.onblur=()=>renderRanklist();
+  oe.appendChild(inp); ed.appendChild(oe);
+  const note=document.createElement('div'); note.className='reditnote';
+  note.textContent='Skala 1–5. Risiko und Ressourcenbedarf erhöhen den Aufwand, hohe Machbarkeit senkt ihn. Die Karte aktualisiert sich sofort.';
+  ed.appendChild(note);
+  return ed;
+}
+// light update of scores without rebuilding open editor
+function renderRanklistScoresOnly(){
+  const w=lensW();
+  const ranked=[...INITIATIVES].sort((a,b)=>priority(b.id,w)-priority(a.id,w));
+  // simplest: full rerender but keep editor — we rebuild fully:
+  renderRanklist();
+}
+function openItem(id, forceOpen){
+  STATE.openItem = (STATE.openItem===id && !forceOpen) ? null : id;
+  persist(); renderRanklist();
+  if(STATE.openItem===id){
+    const el=[...document.querySelectorAll('.ritem')].find(r=>r.querySelector('.rcode')?.textContent===id);
+    if(el) el.scrollIntoView({behavior:'smooth',block:'center'});
+  }
+}
+
+/* ============================================================ RENDER: PERSPEKTIVEN ============ */
+function renderPerspektiven(){
+  const box=document.getElementById('pgrid'); if(!box) return; box.innerHTML='';
+  ['dlh','edtech','ebd'].forEach(k=>{
+    const L=STATE.lens[k];
+    const card=document.createElement('div'); card.className='card pad pcard '+k;
+    const ranked=rankUnder(k).slice(0,3).map(id=>INITIATIVES.find(i=>i.id===id));
+    card.innerHTML=`<h3><span class="pdot" style="background:var(--${k})"></span>${L.label}</h3>
+      <p class="pdesc">${L.desc}</p>`;
+    CRIT.forEach(c=>{
+      const row=document.createElement('div'); row.className='wrow';
+      row.innerHTML=`<label>${c.label}</label>`;
+      const rng=document.createElement('input'); rng.type='range'; rng.min=0; rng.max=2; rng.step=0.1; rng.value=L[c.k];
+      const val=document.createElement('span'); val.className='wv'; val.textContent=(+L[c.k]).toFixed(1);
+      rng.oninput=()=>{ L[c.k]=+rng.value; val.textContent=(+rng.value).toFixed(1); };
+      rng.onchange=()=>{ persist(); renderContest(); renderVorarbeit(); renderPerspektiven(); if(STATE.activeLens===k){renderMap();renderRanklist();} };
+      // span over both columns then value: insert label, then range full width via grid trick
+      const wrapr=document.createElement('div'); wrapr.style.gridColumn='1/3'; wrapr.appendChild(rng);
+      row.appendChild(wrapr); row.appendChild(val); card.appendChild(row);
+    });
+    const top=document.createElement('div'); top.className='ptop';
+    top.innerHTML=`<div class="ptl">Top 3 unter dieser Brille</div><ol>${ranked.map(i=>`<li>${i.id} · ${i.name}</li>`).join('')}</ol>`;
+    card.appendChild(top);
+    box.appendChild(card);
+  });
+  renderContest();
+}
+
+function renderContest(){
+  const tb=document.getElementById('ctbody'); if(!tb) return; tb.innerHTML='';
+  const rDLH=rankUnder('dlh'), rEd=rankUnder('edtech'), rEb=rankUnder('ebd');
+  const pos=(arr,id)=>arr.indexOf(id)+1;
+  const colorFor=(rank)=>{ // rank 1..20 -> green to grey
+    if(rank<=5) return 'var(--good)'; if(rank<=10) return 'var(--accent)'; if(rank<=15) return 'var(--ink-faint)'; return '#B9C3CC';
+  };
+  const rows=INITIATIVES.map(i=>{
+    const a=pos(rDLH,i.id), b=pos(rEd,i.id), c=pos(rEb,i.id);
+    const spread=Math.max(a,b,c)-Math.min(a,b,c);
+    return {i,a,b,c,spread};
+  }).sort((x,y)=>y.spread-x.spread);
+  rows.forEach(({i,a,b,c,spread})=>{
+    const verdict = spread>=8?['umstritten','Aussprache nötig']:spread>=4?['mittel','beobachten']:['konsens','stiller Konsens'];
+    const tr=document.createElement('tr');
+    const pct=Math.min(100, spread/19*100);
+    tr.innerHTML=`
+      <td class="cn">${i.id} · ${i.name}</td>
+      <td class="num"><span class="rankpill" style="background:${colorFor(a)}">${a}</span></td>
+      <td class="num"><span class="rankpill" style="background:${colorFor(b)}">${b}</span></td>
+      <td class="num"><span class="rankpill" style="background:${colorFor(c)}">${c}</span></td>
+      <td><div class="spreadbar"><i style="width:${pct}%;background:${spread>=8?'var(--amber)':spread>=4?'#D9C089':'var(--good)'}"></i></div></td>
+      <td><span class="verdict ${verdict[0]}">${verdict[1]}</span></td>`;
+    tb.appendChild(tr);
+  });
+}
+
+/* ============================================================ RENDER: VORARBEIT ============ */
+const PREP_FIELDS=[
+  {k:'ziel', label:'Ziel der Vorarbeit', ph:'Was soll am Ende vorliegen? (z.B. dokumentierter Use Case, Steckbrief, Prototyp)', area:true},
+  {k:'verantwortlich', label:'Verantwortlich', ph:'NN', area:false},
+  {k:'voraussetzungen', label:'Voraussetzungen / Abhängigkeiten', ph:'Governance, Tools, Personen, Daten …', area:true},
+  {k:'schritt', label:'Erster Erprobungsschritt', ph:'Konkret und klein — was passiert zuerst?', area:true}
+];
+function renderVorarbeit(){
+  const grid=document.getElementById('prepgrid'); const badge=document.getElementById('vbadge');
+  if(!grid) return;
+  const SAFE=safeSet();
+  const w=STATE.lens.gemeinsam;
+  const list=INITIATIVES.filter(i=>SAFE.has(i.id)).sort((a,b)=>priority(b.id,w)-priority(a.id,w));
+  badge.innerHTML = list.length
+    ? `<span class="vlead-badge"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>${list.length} vorarbeit-sichere${list.length===1?'s Vorhaben':' Vorhaben'}</span>` : '';
+  grid.innerHTML='';
+  if(!list.length){
+    grid.innerHTML=`<div class="vempty"><h3>Noch kein Vorhaben erfüllt beide Bedingungen.</h3><p>Sobald ein Vorhaben bei allen drei Hausbrillen weit oben liegt und die Ränge nah beieinander sind, erscheint hier seine Vorbereitungs-Vorlage. Passt dazu die Bewertungen (Ansicht 1) oder die Gewichtungen (Ansicht 2) an.</p></div>`;
+    return;
+  }
+  list.forEach(i=>{
+    if(!STATE.prep[i.id]) STATE.prep[i.id]={};
+    const P=STATE.prep[i.id];
+    if(!P.verantwortlich) P.verantwortlich = STATE.scores[i.id].owner||'';
+    const card=document.createElement('div'); card.className='card pad prepcard';
+    const pscore=Math.round(priority(i.id,w));
+    const top=document.createElement('div');
+    top.innerHTML=`<div class="pc-top">
+        <span class="pc-code" style="background:${LAYERS[i.layer].hex}">${i.id}</span>
+        <h3>${i.name}</h3></div>
+      <div class="pc-meta"><span>${LAYERS[i.layer].name}</span><span>Priorität ${pscore}</span><span style="color:var(--good)">stiller Konsens</span></div>`;
+    card.appendChild(top);
+    PREP_FIELDS.forEach(f=>{
+      const wrap=document.createElement('div'); wrap.className='pfield';
+      const lab=document.createElement('label'); lab.textContent=f.label; wrap.appendChild(lab);
+      const el=document.createElement(f.area?'textarea':'input');
+      el.placeholder=f.ph; el.value=P[f.k]||'';
+      el.oninput=()=>{ P[f.k]=el.value; persist(); };
+      wrap.appendChild(el); card.appendChild(wrap);
+    });
+    grid.appendChild(card);
+  });
+}
+
+/* ============================================================ RENDER: ÜBERGANG ============ */
+function renderPhases(){
+  const rail=document.getElementById('phaserail'); rail.innerHTML='';
+  PHASES.forEach(p=>{
+    const done = Object.values(STATE.phase[p.id]).every(v=>v) ;
+    const div=document.createElement('div'); div.className='phase'+(done?' done':'');
+    let mhtml='';
+    p.measures.forEach((m,i)=>{
+      const ck=STATE.phase[p.id][i];
+      mhtml+=`<li class="${ck?'checked':''}" data-p="${p.id}" data-i="${i}">
+        <span class="mcheck"><svg viewBox="0 0 24 24" fill="none" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span class="mtxt">${m.t}<span class="mtag">${m.tag}</span></span></li>`;
+    });
+    div.innerHTML=`<span class="pnode"></span>
+      <div class="pheader"><span class="pkicker">${p.kicker}</span><h3>${p.title}</h3></div>
+      <p class="pgoal">${p.goal}</p>
+      <div class="pbody">
+        <ul class="measures">${mhtml}</ul>
+        <div class="gate"><div class="gl"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Entscheid-Gate</div>
+          <p>${p.gate}</p><p class="gq">${p.gq}</p></div>
+      </div>`;
+    rail.appendChild(div);
+  });
+  rail.querySelectorAll('.measures li').forEach(li=>{
+    li.onclick=()=>{ const pid=li.dataset.p, ix=+li.dataset.i; STATE.phase[pid][ix]=!STATE.phase[pid][ix]; persist(); renderPhases(); };
+  });
+}
+
+function renderRaci(){
+  const t=document.getElementById('racitable');
+  let head='<thead><tr><th class="rowh">Entscheidung</th>'+RACI_ROLES.map(r=>`<th>${r}</th>`).join('')+'</tr></thead>';
+  let body='<tbody>';
+  RACI_DECISIONS.forEach((d,ri)=>{
+    body+=`<tr><td class="rowh">${d.d}</td>`;
+    RACI_ROLES.forEach((r,ci)=>{
+      const v=STATE.raci[ri][ci];
+      body+=`<td><button class="racicell" data-v="${v}" data-r="${ri}" data-c="${ci}">${v}</button></td>`;
+    });
+    body+='</tr>';
+  });
+  body+='</tbody>';
+  t.innerHTML=head+body;
+  t.querySelectorAll('.racicell').forEach(b=>{
+    b.onclick=()=>{ const ri=+b.dataset.r, ci=+b.dataset.c; const cur=STATE.raci[ri][ci];
+      const next=RACI_CYCLE[(RACI_CYCLE.indexOf(cur)+1)%RACI_CYCLE.length];
+      STATE.raci[ri][ci]=next; b.dataset.v=next; b.textContent=next; persist(); };
+  });
+}
+
+/* ============================================================ TOOLTIP ============ */
+function showTip(e,html){ const t=document.getElementById('tip'); t.innerHTML=html; t.style.opacity='1';
+  let x=e.clientX+14,y=e.clientY+14; if(x>innerWidth-260)x=e.clientX-250; t.style.left=x+'px'; t.style.top=y+'px'; }
+function hideTip(){ document.getElementById('tip').style.opacity='0'; }
+
+/* ============================================================ TABS ============ */
+function switchView(v){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.v===v));
+  document.querySelectorAll('.view').forEach(s=>s.classList.toggle('active',s.id==='view-'+v));
+  if(v==='persp') renderPerspektiven();
+  if(v==='vorarbeit') renderVorarbeit();
+}
+document.querySelectorAll('.tab').forEach(t=> t.onclick=()=>switchView(t.dataset.v));
+
+/* ============================================================ EXPORT / IMPORT / RESET ============ */
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(STATE,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='FLLKI-Uebergang-Stand.json'; a.click(); URL.revokeObjectURL(a.href);
+}
+function importJSON(ev){
+  const f=ev.target.files[0]; if(!f)return; const r=new FileReader();
+  r.onload=()=>{ try{ STATE=JSON.parse(r.result); persist(); renderAll(); }catch(e){ alert('Datei konnte nicht gelesen werden.'); } };
+  r.readAsText(f); ev.target.value='';
+}
+function resetAll(){ if(confirm('Alle Bewertungen, Gewichtungen und Häkchen auf die Startwerte zurücksetzen?')){ STATE=defaultState(); persist(); renderAll(); } }
+
+/* ============================================================ INIT ============ */
+function renderAll(){ renderLensPills(); renderMap(); renderRanklist(); renderPerspektiven(); renderPhases(); renderRaci(); renderVorarbeit(); }
+(async function(){
+  const saved=await Persist.load();
+  STATE = saved && saved.scores ? mergeState(saved) : defaultState();
+  renderAll();
+})();
+// merge to tolerate older saves missing keys
+function mergeState(s){
+  const d=defaultState();
+  return {
+    scores:{...d.scores, ...(s.scores||{})},
+    lens:{...d.lens, ...(s.lens||{})},
+    raci:s.raci&&s.raci[0]?s.raci:d.raci,
+    phase:{...d.phase, ...(s.phase||{})},
+    prep:{...(s.prep||{})},
+    activeLens:s.activeLens||'gemeinsam',
+    openItem:s.openItem||null
+  };
+}
+</script>
+</body>
+</html>
