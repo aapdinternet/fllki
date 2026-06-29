@@ -1,5 +1,5 @@
 # Future Learning Lab KI: Priorisierung
-Das Word Dokument [Future Learning Lab KI](https://eduzh.sharepoint.com/:w:/r/teams/EinfhrungKIanderSekII-Projektteam/_layouts/15/Doc.aspx?sourcedoc=%7B6635003C-B669-415D-8960-FF57028F66F2%7D&file=Future%20Learning%20Lab%20KI.docx&action=default&mobileredirect=true)beschreibt das Vorhaben
+Das Word Dokument [Future Learning Lab KI](https://eduzh.sharepoint.com/:w:/r/teams/EinfhrungKIanderSekII-Projektteam/_layouts/15/Doc.aspx?sourcedoc=%7B6635003C-B669-415D-8960-FF57028F66F2%7D&file=Future%20Learning%20Lab%20KI.docx&action=default&mobileredirect=true) beschreibt das Vorhaben
 
 Für einen Workshop zur gemeinsamen Priorisierung können 2 Files verwendet werden
 
