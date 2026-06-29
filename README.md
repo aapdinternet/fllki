@@ -7,6 +7,6 @@ Für einen Workshop zur gemeinsamen Priorisierung können 2 Files verwendet werd
 [Übergangsplanung: Bereits durch KI priorisiert und Detailanpassungen mit Human in the loop](fllki-uebergang.html)
 
 # Anzeige als html
-[Matrix-Workspace](https://aapdinternet.github.io/fllki/fllki-uebergang.html)  
+[Matrix-Workspace](https://aapdinternet.github.io/fllki/matrix-workspace.html)  
 
 [Übergangsplanung](https://aapdinternet.github.io/fllki/fllki-uebergang.html)
