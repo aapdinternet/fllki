@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -295,7 +295,7 @@
   <div class="section-lead">
     <div>
       <h2>Welche Initiativen zuerst?</h2>
-      <p>Alle 20 Vorhaben aus dem Papier, bewertet entlang fünf gemeinsamer Kriterien. Wähle eine Brille — die Karte und die Rangliste ordnen sich live neu. Klick auf eine Initiative, um Bewertung und Owner anzupassen.</p>
+      <p>Alle 22 Vorhaben aus dem Papier, bewertet entlang fünf gemeinsamer Kriterien. Wähle eine Brille — die Karte und die Rangliste ordnen sich live neu. Klick auf eine Initiative, um Bewertung und Owner anzupassen.</p>
     </div>
   </div>
 
@@ -401,7 +401,7 @@
 
 <footer>
   <div class="wrap">
-    <b>Future Learning Lab KI</b> · Übergangs-Cockpit · Arbeitsstand zum Papier v0.45 (André Dinter, 06.06.2026). Startwerte sind Vorschläge zum Reagieren, kein Beschluss. Stand bleibt im Browser gespeichert; für den Workshop „Stand exportieren" und teilen.
+    <b>Future Learning Lab KI</b> · Übergangs-Cockpit · Arbeitsstand zur aktualisierten Fassung des FLLKI-Papiers, 22 Initiativen. Startwerte sind Vorschläge zum Reagieren, kein Beschluss. Stand bleibt im Browser gespeichert; für den Workshop „Stand exportieren" und teilen.
   </div>
 </footer>
 
@@ -432,12 +432,14 @@ const INITIATIVES = [
   {id:'K9', layer:'KI', name:'AIS/ITS — openSource ais.schule (FWU)', owner:'Roy', paed:5,strat:5,mach:2,risk:4,res:5},
   {id:'K10',layer:'KI', name:'VR-Unterrichtswelten mit KI designen', owner:'Roy', paed:3,strat:3,mach:2,risk:2,res:5},
   {id:'K11',layer:'KI', name:'KI-Tandem BFS–Lehrbetrieb', owner:'NN', paed:4,strat:4,mach:2,risk:2,res:4},
+  {id:'K12',layer:'KI', name:'EduPromptathon — fachspezifische KI-Lernsettings (läuft bei EB digital)', owner:'Roy', paed:3,strat:3,mach:5,risk:1,res:2},
   {id:'D1', layer:'DAT',name:'Learning Analytics — deskriptives Moodle-Dashboard als Einstieg', owner:'NN', paed:4,strat:4,mach:4,risk:3,res:3},
   {id:'D2', layer:'DAT',name:'Prozess-Monitoring (Versioning) bei längeren Arbeiten', owner:'NN', paed:4,strat:4,mach:3,risk:4,res:4},
   {id:'D3', layer:'DAT',name:'Prüfungskultur in Zeiten von KI (Grundsatzklärung)', owner:'NN', paed:4,strat:5,mach:3,risk:2,res:2},
   {id:'D4', layer:'DAT',name:'KI-gestützte Prüfungskorrektur (Stift+ ETH / isTest)', owner:'Graziano', paed:4,strat:4,mach:3,risk:3,res:4},
   {id:'D5', layer:'DAT',name:'eAssessment: neue Prüfungsarchitektur (ELIAS / Multi-Agent)', owner:'Alex', paed:4,strat:5,mach:2,risk:4,res:4},
   {id:'D6', layer:'DAT',name:'KI-Buddy fürs Selbststudium (Flipped Classroom)', owner:'NN', paed:4,strat:3,mach:5,risk:2,res:3},
+  {id:'D7', layer:'DAT',name:'Second Brain — Selbstorganisation (NotebookLM, Claude Cowork, Skills)', owner:'Roy', paed:3,strat:3,mach:4,risk:2,res:2},
   {id:'G1', layer:'GOV',name:'Lokale / private LLMs — Datenschutz (Innovationsfonds EB)', owner:'Roy / Christian', paed:3,strat:4,mach:2,risk:2,res:5},
   {id:'G2', layer:'GOV',name:'Rollen- & Zugriffssysteme über MS Teams (Projekt Portal)', owner:'Projekt Portal', paed:2,strat:4,mach:3,risk:3,res:3},
   {id:'G3', layer:'GOV',name:'Externes Know-How einbinden (tutor.new etc.)', owner:'Roy', paed:3,strat:3,mach:3,risk:3,res:2}
@@ -904,17 +906,23 @@ function resetAll(){ if(confirm('Alle Bewertungen, Gewichtungen und Häkchen auf
 /* ============================================================ INIT ============ */
 function renderAll(){ renderLensPills(); renderMap(); renderRanklist(); renderPerspektiven(); renderPhases(); renderRaci(); renderVorarbeit(); }
 (async function(){
-  const saved=await Persist.load();
-  STATE = saved && saved.scores ? mergeState(saved) : defaultState();
-  renderAll();
+  try{
+    const saved=await Persist.load();
+    STATE = saved && saved.scores ? mergeState(saved) : defaultState();
+    renderAll();
+  }catch(e){
+    console.error('Init-/Render-Fehler — setze auf Startwerte zurück:', e);
+    STATE = defaultState();
+    try{ renderAll(); }catch(e2){ console.error(e2); }
+  }
 })();
-// merge to tolerate older saves missing keys
+// merge to tolerate older saves (neue Initiativen, prep)
 function mergeState(s){
   const d=defaultState();
   return {
     scores:{...d.scores, ...(s.scores||{})},
     lens:{...d.lens, ...(s.lens||{})},
-    raci:s.raci&&s.raci[0]?s.raci:d.raci,
+    raci:(Array.isArray(s.raci) && s.raci.length===RACI_DECISIONS.length && Array.isArray(s.raci[0]) && s.raci[0].length===RACI_ROLES.length) ? s.raci : d.raci,
     phase:{...d.phase, ...(s.phase||{})},
     prep:{...(s.prep||{})},
     activeLens:s.activeLens||'gemeinsam',
